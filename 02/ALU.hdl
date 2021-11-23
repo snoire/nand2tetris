@@ -55,6 +55,7 @@ CHIP ALU {
     Not16(in=out0, out=negout);
     //Mux16(a=out0, b=negout, sel=no, out=out);
     // 这是什么语法？赋值？
+    // 定义了 internal bus pin，参见 A2.2 Multi-Bit Buses: Internal bus pins
     Mux16(a=out0, b=negout, sel=no, out=out, out[0..7]=out1, out[8..15]=out2, out[15]=ng);
 
     /* 语法错误，Or8Way 接受 8bit，out 是 16bit，有一些没有使用
