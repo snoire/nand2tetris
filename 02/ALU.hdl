@@ -59,6 +59,7 @@ CHIP ALU {
     Mux16(a=out0, b=negout, sel=no, out=out, out[0..7]=out1, out[8..15]=out2, out[15]=ng);
 
     /* 语法错误，Or8Way 接受 8bit，out 是 16bit，有一些没有使用
+    // 不只是这样，in[3..5] 这种输入引脚就行，参见 RAM64.hdl。内部产生的引脚不行？
     Or8Way(in=out[0..7], out=zr0);
     Or8Way(in=out[8..15], out=zr1);
     Or(a=zr0, b=zr1, out=nzr);
