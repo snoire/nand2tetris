@@ -1,22 +1,9 @@
 const std = @import("std");
-const builtin = @import("builtin");
+const parser = @import("parser.zig");
+const Parser = parser.Parser;
 const print = std.debug.print;
 const allocator = std.heap.page_allocator;
 
-const MAX_FILE_SIZE = 0x1000000;
-
-fn nextLine(reader: anytype, buffer: []u8) !?[]const u8 {
-    // 显示指定变量类型为 []const u8，把 []u8 赋值给它
-    // 因为下面的 trimRight 返回 []const u8，不能把 []const u8 赋值给 []u8
-    var line: []const u8 = (try reader.readUntilDelimiterOrEof(buffer, '\n')) orelse return null;
-
-    // trim annoying windows-only carriage return character
-    if (builtin.os.tag == .windows) {
-        line = std.mem.trimRight(u8, line, "\r");
-    }
-
-    return line;
-}
 
 pub fn main() anyerror!void {
     const args = try std.process.argsAlloc(allocator);
@@ -33,11 +20,18 @@ pub fn main() anyerror!void {
     defer asmfile.close();
 
     // parse asm
-    const reader = asmfile.reader();
-    var buf: [2048]u8 = undefined;
+    var p = try Parser.init(allocator, asmfile);
+    defer p.deinit();
 
-    while (try nextLine(reader, &buf)) |line| {
-        print("{s}\n", .{line});
+    // print statement and symtable
+    for (p.statements.items) |statement| {
+        print("{s}\n", .{statement});
+    }
+
+    var iterator = p.symtable.iterator();
+    print("\nsymtable\n", .{});
+    while (iterator.next()) |entry| {
+        print("{s}: {}\n", .{entry.key_ptr.*, entry.value_ptr.*});
     }
 
 
@@ -50,8 +44,4 @@ pub fn main() anyerror!void {
     //print("filename: {s}\n", .{hackfile});
     //print("{s}", .{bytes});
     //try cwd.writeFile(hackfile, bytes);
-}
-
-test "basic test" {
-    try std.testing.expectEqual(10, 3 + 7);
 }
