@@ -6,10 +6,18 @@ const dSet = .{
     .{ "M", "001" },
     .{ "D", "010" },
     .{ "DM", "011" },
+    .{ "MD", "011" },
     .{ "A", "100" },
     .{ "AM", "101" },
+    .{ "MA", "101" },
     .{ "AD", "110" },
+    .{ "DA", "110" },
     .{ "ADM", "111" },
+    .{ "AMD", "111" },
+    .{ "MAD", "111" },
+    .{ "MDA", "111" },
+    .{ "DMA", "111" },
+    .{ "DAM", "111" },
 };
 
 const cSet = .{
@@ -60,6 +68,7 @@ fn atoi(string: []const u8) callconv(.Inline) usize {
     }
     return num;
 }
+
 
 pub const Code = struct {
     const Self = @This();
@@ -136,7 +145,41 @@ pub const Code = struct {
             return &self.ramaddrStr;
         } else {
             // C instruction
-            return statement;
+            var it = std.mem.tokenize(u8, statement, "=; /");
+            var hasDest = if (std.mem.indexOfScalar(u8, statement, '=') != null) true else false;
+            var hasJump = if (std.mem.indexOfScalar(u8, statement, ';') != null) true else false;
+
+            var dest: []const u8 = "";
+            var comp: []const u8 = "";
+            var jump: []const u8 = "";
+            var destCode: []const u8 = "000";
+            var compCode: []const u8 = undefined;
+            var jumpCode: []const u8 = "000";
+
+            if (hasDest) {
+                dest = it.next().?;
+                destCode = self.dmap.get(dest).?;
+            }
+
+            comp = it.next().?;
+            compCode = self.cmap.get(comp).?;
+            
+            if (hasJump) {
+                jump = it.next().?;
+                jumpCode = self.jmap.get(jump).?;
+            }
+
+            _ = try std.fmt.bufPrint(&self.ramaddrStr, "111{s}{s}{s}", .{
+                compCode,
+                destCode,
+                jumpCode,
+            });
+
+            //print("dest: |{s}| -> |{s}|\n", .{dest, destCode});
+            //print("comp: |{s}| -> |{s}|\n", .{comp, compCode});
+            //print("jump: |{s}| -> |{s}|\n", .{jump, jumpCode});
+
+            return &self.ramaddrStr;
         }
     }
 };

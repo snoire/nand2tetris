@@ -20,6 +20,13 @@ pub fn main() anyerror!void {
     const asmfile = try cwd.openFile(args[1], .{ .read = true });
     defer asmfile.close();
 
+    // truncate hack file for writing
+    const filebase = std.mem.trimRight(u8, args[1], "asm");
+    const hackfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ filebase, "hack" });
+    defer allocator.free(hackfilename);
+    const hackfile = try cwd.createFile(hackfilename, .{ .truncate = true });
+    defer hackfile.close();
+
     // parse asm
     var p = try Parser.init(allocator, asmfile);
     defer p.deinit();
@@ -29,7 +36,8 @@ pub fn main() anyerror!void {
 
     // print statement and symtable
     for (p.statements.items) |statement| {
-        print("{s}\n", .{c.translate(statement)});
+        //print("{s}\n{s}\n", .{statement, c.translate(statement)});
+        try hackfile.writer().print("{s}\n", .{c.translate(statement)});
     }
 
     //var iterator = p.symtable.iterator();
@@ -37,14 +45,4 @@ pub fn main() anyerror!void {
     //while (iterator.next()) |entry| {
     //    print("{s}: {}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
     //}
-
-    // write to hack file
-    const filebase = std.mem.trimRight(u8, args[1], "asm");
-    const hackfile = try std.mem.concat(allocator, u8, &[_][]const u8{ filebase, "hack" });
-    defer allocator.free(hackfile);
-
-    // TODO
-    //print("filename: {s}\n", .{hackfile});
-    //print("{s}", .{bytes});
-    //try cwd.writeFile(hackfile, bytes);
 }
