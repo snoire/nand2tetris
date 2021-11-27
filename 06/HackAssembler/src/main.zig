@@ -1,9 +1,10 @@
 const std = @import("std");
 const parser = @import("parser.zig");
 const Parser = parser.Parser;
+const code = @import("code.zig");
+const Code = code.Code;
 const print = std.debug.print;
 const allocator = std.heap.page_allocator;
-
 
 pub fn main() anyerror!void {
     const args = try std.process.argsAlloc(allocator);
@@ -23,21 +24,23 @@ pub fn main() anyerror!void {
     var p = try Parser.init(allocator, asmfile);
     defer p.deinit();
 
+    var c = try Code.init(allocator, &p.symtable);
+    defer c.deinit();
+
     // print statement and symtable
     for (p.statements.items) |statement| {
-        print("{s}\n", .{statement});
+        print("{s}\n", .{c.translate(statement)});
     }
 
-    var iterator = p.symtable.iterator();
-    print("\nsymtable\n", .{});
-    while (iterator.next()) |entry| {
-        print("{s}: {}\n", .{entry.key_ptr.*, entry.value_ptr.*});
-    }
-
+    //var iterator = p.symtable.iterator();
+    //print("\nsymtable\n", .{});
+    //while (iterator.next()) |entry| {
+    //    print("{s}: {}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
+    //}
 
     // write to hack file
     const filebase = std.mem.trimRight(u8, args[1], "asm");
-    const hackfile = try std.mem.concat(allocator, u8, &[_][]const u8{filebase, "hack"});
+    const hackfile = try std.mem.concat(allocator, u8, &[_][]const u8{ filebase, "hack" });
     defer allocator.free(hackfile);
 
     // TODO
