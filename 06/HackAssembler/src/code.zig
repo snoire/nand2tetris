@@ -61,14 +61,13 @@ const jSet = .{
     .{ "JMP", "111" },
 };
 
-fn atoi(string: []const u8) callconv(.Inline) usize {
+inline fn atoi(string: []const u8) usize {
     var num: usize = 0;
     for (string) |char| {
         num = 10 * num + (char - '0');
     }
     return num;
 }
-
 
 pub const Code = struct {
     const Self = @This();
@@ -141,8 +140,6 @@ pub const Code = struct {
             };
 
             _ = try std.fmt.bufPrint(&self.ramaddrStr, "0{b:0>15}", .{num.?});
-
-            return &self.ramaddrStr;
         } else {
             // C instruction
             var it = std.mem.tokenize(u8, statement, "=; /");
@@ -163,23 +160,15 @@ pub const Code = struct {
 
             comp = it.next().?;
             compCode = self.cmap.get(comp).?;
-            
+
             if (hasJump) {
                 jump = it.next().?;
                 jumpCode = self.jmap.get(jump).?;
             }
 
-            _ = try std.fmt.bufPrint(&self.ramaddrStr, "111{s}{s}{s}", .{
-                compCode,
-                destCode,
-                jumpCode,
-            });
-
-            //print("dest: |{s}| -> |{s}|\n", .{dest, destCode});
-            //print("comp: |{s}| -> |{s}|\n", .{comp, compCode});
-            //print("jump: |{s}| -> |{s}|\n", .{jump, jumpCode});
-
-            return &self.ramaddrStr;
+            _ = try std.fmt.bufPrint(&self.ramaddrStr, "111{s}{s}{s}", .{ compCode, destCode, jumpCode });
         }
+
+        return &self.ramaddrStr;
     }
 };

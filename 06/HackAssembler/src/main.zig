@@ -34,15 +34,8 @@ pub fn main() anyerror!void {
     var c = try Code.init(allocator, &p.symtable);
     defer c.deinit();
 
-    // print statement and symtable
+    // write to hack file
     for (p.statements.items) |statement| {
-        //print("{s}\n{s}\n", .{statement, c.translate(statement)});
         try hackfile.writer().print("{s}\n", .{c.translate(statement)});
     }
-
-    //var iterator = p.symtable.iterator();
-    //print("\nsymtable\n", .{});
-    //while (iterator.next()) |entry| {
-    //    print("{s}: {}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
-    //}
 }

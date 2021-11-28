@@ -8,14 +8,14 @@ fn nextLine(allocator: *Allocator, asmfile: File) !?[]const u8 {
     const buffer = try allocator.alloc(u8, 1024);
     const reader = asmfile.reader();
 
-    // 显示指定变量类型为 []const u8，把 []u8 赋值给它
+    // 显式指定变量类型为 []const u8，把 []u8 赋值给它
     // 因为下面的 trimRight 返回 []const u8，不能把 []const u8 赋值给 []u8
     var line: []const u8 = (try reader.readUntilDelimiterOrEof(buffer, '\n')) orelse return null;
 
     // trim annoying windows-only carriage return character
-    if (builtin.os.tag == .windows) {
-        line = std.mem.trimRight(u8, line, "\r");
-    }
+    //if (builtin.os.tag == .windows) {
+    line = std.mem.trimRight(u8, line, "\r");
+    //}
 
     return line;
 }
