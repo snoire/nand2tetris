@@ -2,6 +2,7 @@ const std = @import("std");
 const print = std.debug.print;
 const allocator = std.heap.page_allocator;
 const parser = @import("parser.zig");
+const codewriter = @import("codewriter.zig");
 
 pub fn main() anyerror!void {
     const args = try std.process.argsAlloc(allocator);
@@ -25,14 +26,36 @@ pub fn main() anyerror!void {
     defer asmfile.close();
     //print("output: {s}\n", .{asmfilename});
 
+    // translate
     const reader = vmfile.reader();
-    const buffer = try allocator.alloc(u8, 1024);
-    defer allocator.free(buffer);
+    const writer = asmfile.writer();
 
-    while (try parser.nextLine(reader, buffer)) |line| {
+    const linebuf = try allocator.alloc(u8, 1024);
+    defer allocator.free(linebuf);
+    const cmdbuf = try allocator.alloc(u8, 1024);
+    defer allocator.free(cmdbuf);
+
+    while (try parser.nextLine(reader, linebuf)) |line| {
         var cmd = try parser.parseCMD(line);
         if (cmd != null) {
-            print("{any}\n", .{cmd});
+            //print("{any}\n", .{cmd});
+            switch (cmd.?.type) {
+                .C_PUSH, .C_POP => {
+                    //print("tranlated to: \n{s}\n", .{try codewriter.pushpop(cmd.?, cmdbuf, filebase)});
+                    try writer.print(
+                        \\//{s}
+                        \\{s}
+                    , .{ line, try codewriter.pushpop(cmd.?, cmdbuf, filebase) });
+                },
+                .C_ARITHMETIC => {
+                    //print("tranlated to: \n{s}\n", .{try codewriter.arithmetic(cmd.?, cmdbuf)});
+                    try writer.print(
+                        \\//{s}
+                        \\{s}
+                    , .{ line, try codewriter.arithmetic(cmd.?, cmdbuf) });
+                },
+                else => {},
+            }
         }
     }
 }
