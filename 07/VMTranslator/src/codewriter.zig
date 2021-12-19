@@ -1,42 +1,73 @@
 const std = @import("std");
-const builtin = @import("builtin");
-const print = std.debug.print;
-const Allocator = std.mem.Allocator;
 const Command = @import("parser.zig").Command;
 
-const @"SP++" =
+const asmcode1 =
     \\@SP
-    \\M=M+1
-    \\
+    \\A=M-1
 ;
-const @"SP--" =
+const asmcode2 =
     \\@SP
     \\AM=M-1
-    \\
-;
-const @"SP--2" = @"SP--" ++
     \\D=M
     \\A=A-1
-    \\
 ;
 
 pub fn arithmetic(cmd: Command, buffer: []u8) ![]const u8 {
+    const S = struct {
+        var index: usize = 0; // static local variable
+    };
+
     var buf: []u8 = undefined;
+    var sign: u8 = undefined;
     switch (cmd.arg1[0]) {
-        'a' => {
+        'a', 's', 'o' => { // add, and, sub, or
             if (std.mem.eql(u8, cmd.arg1, "add")) {
-                buf = try std.fmt.bufPrint(buffer, "{s}M=M+D\n", .{@"SP--2"});
+                sign = '+';
             } else if (std.mem.eql(u8, cmd.arg1, "and")) {
-                buf = try std.fmt.bufPrint(buffer, "{s}M=M&D\n", .{@"SP--2"});
+                sign = '&';
+            } else if (std.mem.eql(u8, cmd.arg1, "sub")) {
+                sign = '-';
+            } else if (std.mem.eql(u8, cmd.arg1, "or")) {
+                sign = '|';
             } else {
                 unreachable;
             }
+            buf = try std.fmt.bufPrint(buffer, "{s}\nM=M{c}D\n", .{ asmcode2, sign });
         },
-        'e' => {},
-        'g' => {},
-        'n' => {},
-        'l' => {},
-        's' => {},
+        'e', 'g', 'l' => { // eq, gt, lt
+            buf = try std.fmt.bufPrint(buffer,
+                \\{0s}
+                \\D=M-D
+                \\@TRUE{1d}
+                \\D;J{2c}{3c}
+                \\{4s}
+                \\M=0
+                \\@CONTINUE{1d}
+                \\0;JMP
+                \\(TRUE{1d})
+                \\{4s}
+                \\M=-1
+                \\(CONTINUE{1d})
+                \\
+            , .{
+                asmcode2,
+                S.index,
+                cmd.arg1[0] - 32,
+                cmd.arg1[1] - 32,
+                asmcode1,
+            });
+            S.index += 1;
+        },
+        'n' => { // neg, not
+            if (std.mem.eql(u8, cmd.arg1, "neg")) {
+                sign = '-';
+            } else if (std.mem.eql(u8, cmd.arg1, "not")) {
+                sign = '!';
+            } else {
+                unreachable;
+            }
+            buf = try std.fmt.bufPrint(buffer, "{s}\nM={c}M\n", .{ asmcode1, sign });
+        },
         else => unreachable,
     }
 

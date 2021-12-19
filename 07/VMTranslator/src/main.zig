@@ -41,14 +41,14 @@ pub fn main() anyerror!void {
             //print("{any}\n", .{cmd});
             switch (cmd.?.type) {
                 .C_PUSH, .C_POP => {
-                    //print("tranlated to: \n{s}\n", .{try codewriter.pushpop(cmd.?, cmdbuf, filebase)});
+                    //print("//{s}\n{s}\n", .{ line, try codewriter.pushpop(cmd.?, cmdbuf, filebase) });
                     try writer.print(
                         \\//{s}
                         \\{s}
                     , .{ line, try codewriter.pushpop(cmd.?, cmdbuf, filebase) });
                 },
                 .C_ARITHMETIC => {
-                    //print("tranlated to: \n{s}\n", .{try codewriter.arithmetic(cmd.?, cmdbuf)});
+                    //print("//{s}\n{s}\n", .{ line, try codewriter.arithmetic(cmd.?, cmdbuf) });
                     try writer.print(
                         \\//{s}
                         \\{s}
