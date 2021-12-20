@@ -35,6 +35,9 @@ pub fn main() anyerror!void {
     const cmdbuf = try allocator.alloc(u8, 1024);
     defer allocator.free(cmdbuf);
 
+    try codewriter.init(allocator);
+    defer codewriter.deinit();
+
     while (try parser.nextLine(reader, linebuf)) |line| {
         var cmd = try parser.parseCMD(line);
         if (cmd != null) {
