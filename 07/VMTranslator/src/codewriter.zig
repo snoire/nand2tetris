@@ -146,7 +146,7 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
             if (cmd.type == .C_PUSH) {
                 buf = try std.fmt.bufPrint(buffer,
                     \\@{s}.{d}
-                    \\D=A
+                    \\D=M
                     \\{s}
                     \\
                 , .{
@@ -167,7 +167,32 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                 });
             }
         },
-        'p' => {},
+        'p' => { // pointer
+            var p: []const u8 = if (cmd.arg2.? == 0) "THIS" else "THAT";
+            if (cmd.type == .C_PUSH) {
+                buf = try std.fmt.bufPrint(buffer,
+                    \\@{s}
+                    \\D=M
+                    \\{s}
+                    \\
+                , .{
+                    // 不能这么写，好像只运行一次
+                    //if (cmd.arg2.? == 0) "THIS" else "THAT",
+                    p,
+                    @"*SP=D, SP++",
+                });
+            } else {
+                buf = try std.fmt.bufPrint(buffer,
+                    \\{s}
+                    \\@{s}
+                    \\M=D
+                    \\
+                , .{
+                    @"SP--, D=*SP",
+                    p,
+                });
+            }
+        },
         't', 'l', 'a' => {
             if (std.mem.eql(u8, cmd.arg1, "temp")) {
                 if (cmd.type == .C_PUSH) {

@@ -1,7 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
-const print = std.debug.print;
-const Allocator = std.mem.Allocator;
 const Reader = std.fs.File.Reader;
 
 inline fn atoi(string: []const u8) usize {

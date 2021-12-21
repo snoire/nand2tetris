@@ -19,12 +19,13 @@ pub fn main() anyerror!void {
     defer vmfile.close();
 
     // truncate asm file for writing
-    const filebase = std.mem.trimRight(u8, args[1], "vm");
-    const asmfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ filebase, "asm" });
+    const vmfilename = args[1];
+    const noextension = vmfilename[0 .. vmfilename.len - 2]; // file name without extension "vm"
+    const asmfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ noextension, "asm" });
     defer allocator.free(asmfilename);
+
     const asmfile = try cwd.createFile(asmfilename, .{ .truncate = true });
     defer asmfile.close();
-    //print("output: {s}\n", .{asmfilename});
 
     // translate
     const reader = vmfile.reader();
@@ -38,20 +39,20 @@ pub fn main() anyerror!void {
     try codewriter.init(allocator);
     defer codewriter.deinit();
 
+    var basename = std.fs.path.basename(vmfilename);
+    basename = basename[0 .. basename.len - 3]; // file name without extension ".vm"
+
     while (try parser.nextLine(reader, linebuf)) |line| {
         var cmd = try parser.parseCMD(line);
         if (cmd != null) {
-            //print("{any}\n", .{cmd});
             switch (cmd.?.type) {
                 .C_PUSH, .C_POP => {
-                    //print("//{s}\n{s}\n", .{ line, try codewriter.pushpop(cmd.?, cmdbuf, filebase) });
                     try writer.print(
                         \\//{s}
                         \\{s}
-                    , .{ line, try codewriter.pushpop(cmd.?, cmdbuf, filebase) });
+                    , .{ line, try codewriter.pushpop(cmd.?, cmdbuf, basename) });
                 },
                 .C_ARITHMETIC => {
-                    //print("//{s}\n{s}\n", .{ line, try codewriter.arithmetic(cmd.?, cmdbuf) });
                     try writer.print(
                         \\//{s}
                         \\{s}
