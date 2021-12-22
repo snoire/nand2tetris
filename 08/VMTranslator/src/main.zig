@@ -45,20 +45,16 @@ pub fn main() anyerror!void {
     while (try parser.nextLine(reader, linebuf)) |line| {
         var cmd = try parser.parseCMD(line);
         if (cmd != null) {
+            try writer.print("// {s}\n", .{line});
+
             switch (cmd.?.type) {
                 .C_PUSH, .C_POP => {
-                    try writer.print(
-                        \\//{s}
-                        \\{s}
-                    , .{ line, try codewriter.pushpop(cmd.?, cmdbuf, basename) });
+                    try writer.print("{s}", .{try codewriter.pushpop(cmd.?, cmdbuf, basename) });
                 },
                 .C_ARITHMETIC => {
-                    try writer.print(
-                        \\//{s}
-                        \\{s}
-                    , .{ line, try codewriter.arithmetic(cmd.?, cmdbuf) });
+                    try writer.print("{s}", .{try codewriter.arithmetic(cmd.?, cmdbuf) });
                 },
-                else => {},
+                else => unreachable,
             }
         }
     }

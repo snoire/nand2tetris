@@ -40,46 +40,43 @@ pub fn nextLine(reader: Reader, buffer: []u8) !?[]const u8 {
     // 因为下面的 trimRight 返回 []const u8，不能把 []const u8 赋值给 []u8
     var line: []const u8 = (try reader.readUntilDelimiterOrEof(buffer, '\n')) orelse return null;
 
-    // trim annoying windows-only carriage return character
-    line = std.mem.trimRight(u8, line, "\r");
+    // remove comments
+    line = std.mem.sliceTo(line, '/');
+
+    // trim annoying windows-only carriage return character and whiteSpace
+    line = std.mem.trimRight(u8, line, " \t\r");
+
     return line;
 }
 
-pub fn parseCMD(preline: []const u8) !?Command {
-    var line = std.mem.trimLeft(u8, preline, " \t");
+pub fn parseCMD(line: []const u8) !?Command {
     if (line.len == 0) return null;
 
-    return switch (line[0]) {
-        '/' => null,
-        'p' => blk: {
-            var cmd: ?Command = undefined;
-            var it = std.mem.tokenize(u8, line[std.mem.indexOfScalar(u8, line, ' ').?..], " /");
-            var arg: []const u8 = undefined;
+    var cmd: ?Command = undefined;
+    var indexOfFristSpace = std.mem.indexOfScalar(u8, line, ' ');
 
-            if (std.mem.startsWith(u8, line, "push")) {
-                arg = it.next().?;
-                cmd = Command.create(.C_PUSH, arg, atoi(it.next().?));
-            } else if (std.mem.startsWith(u8, line, "pop")) {
-                arg = it.next().?;
-                cmd = Command.create(.C_POP, arg, atoi(it.next().?));
-            } else {
-                cmd = null;
-            }
+    if (indexOfFristSpace == null) { // C_ARITHMETIC or C_RETURN
+        cmd = Command.create(if (std.mem.eql(u8, line, "return")) .C_RETURN else .C_ARITHMETIC, line, null);
+    } else {
+        // skip the cmd name
+        var it = std.mem.tokenize(u8, line[indexOfFristSpace.?..], " ");
 
-            break :blk cmd;
-        },
-        else => blk: {
-            var lastidx = for (line) |char, i| {
-                switch (char) {
-                    ' ', '/' => {
-                        break i;
-                    },
-                    else => {},
-                }
-            } else line.len;
-            var token = line[0..lastidx];
+        var arg1 = it.next().?;
+        var arg2 = it.next();
+        var cmdtype: CommandType = switch (line[0]) {
+            // 这里没法自动推测，必须要这样写
+            // https://stackoverflow.com/questions/68416521/zig-0-8-0-error-values-of-type-enum-literal-must-be-comptime-known
+            'p' => if (std.mem.startsWith(u8, line, "push")) CommandType.C_PUSH else CommandType.C_POP,
+            'l' => .C_LABEL,
+            'i' => .C_IF,
+            'g' => .C_GOTO,
+            'f' => .C_FUNCTION,
+            'c' => .C_CALL,
+            else => unreachable,
+        };
 
-            break :blk Command.create(.C_ARITHMETIC, token, null);
-        },
-    };
+        cmd = Command.create(cmdtype, arg1, if (arg2 == null) null else atoi(arg2.?));
+    }
+
+    return cmd;
 }
