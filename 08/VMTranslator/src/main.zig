@@ -47,15 +47,16 @@ pub fn main() anyerror!void {
         if (cmd != null) {
             try writer.print("// {s}\n", .{line});
 
-            switch (cmd.?.type) {
-                .C_PUSH, .C_POP => {
-                    try writer.print("{s}", .{try codewriter.pushpop(cmd.?, cmdbuf, basename) });
-                },
-                .C_ARITHMETIC => {
-                    try writer.print("{s}", .{try codewriter.arithmetic(cmd.?, cmdbuf) });
-                },
+            var code: []const u8 = switch (cmd.?.type) {
+                .C_PUSH, .C_POP => try codewriter.pushpop(cmd.?, cmdbuf, basename),
+                .C_ARITHMETIC => try codewriter.arithmetic(cmd.?, cmdbuf),
+                .C_LABEL => try codewriter.label(cmd.?, cmdbuf),
+                .C_GOTO => try codewriter.goto(cmd.?, cmdbuf),
+                .C_IF => try codewriter.if_goto(cmd.?, cmdbuf),
                 else => unreachable,
-            }
+            };
+
+            try writer.print("{s}\n", .{code});
         }
     }
 }

@@ -61,20 +61,20 @@ pub fn arithmetic(cmd: Command, buffer: []u8) ![]const u8 {
     var sign: u8 = undefined;
     switch (cmd.arg1[0]) {
         'e', 'g', 'l' => { // eq, gt, lt
+            // 生成的 label 前加 '$'，防止和 vm 中的 label 冲突
             buf = try std.fmt.bufPrint(buffer,
                 \\{0s}
                 \\D=M-D
-                \\@TRUE{1d}
+                \\@$TRUE{1d}
                 \\D;{2s}
                 \\{3s}
                 \\M=0
-                \\@CONTINUE{1d}
+                \\@$END{1d}
                 \\0;JMP
-                \\(TRUE{1d})
+                \\($TRUE{1d})
                 \\{3s}
                 \\M=-1
-                \\(CONTINUE{1d})
-                \\
+                \\($END{1d})
             , .{
                 @"SP--, D=*SP, A=SP-1",
                 S.index,
@@ -98,7 +98,6 @@ pub fn arithmetic(cmd: Command, buffer: []u8) ![]const u8 {
             buf = try std.fmt.bufPrint(buffer,
                 \\{s}
                 \\M=M{c}D
-                \\
             , .{
                 @"SP--, D=*SP, A=SP-1",
                 sign,
@@ -115,7 +114,6 @@ pub fn arithmetic(cmd: Command, buffer: []u8) ![]const u8 {
             buf = try std.fmt.bufPrint(buffer,
                 \\{s}
                 \\M={c}M
-                \\
             , .{
                 @"A=SP-1",
                 sign,
@@ -136,7 +134,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                 \\@{d}
                 \\D=A
                 \\{s}
-                \\
             , .{
                 cmd.arg2,
                 @"*SP=D, SP++",
@@ -148,7 +145,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                     \\@{s}.{d}
                     \\D=M
                     \\{s}
-                    \\
                 , .{
                     basename,
                     cmd.arg2,
@@ -159,7 +155,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                     \\{s}
                     \\@{s}.{d}
                     \\M=D
-                    \\
                 , .{
                     @"SP--, D=*SP",
                     basename,
@@ -174,7 +169,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                     \\@{s}
                     \\D=M
                     \\{s}
-                    \\
                 , .{
                     // 不能这么写，好像只运行一次
                     //if (cmd.arg2.? == 0) "THIS" else "THAT",
@@ -186,7 +180,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                     \\{s}
                     \\@{s}
                     \\M=D
-                    \\
                 , .{
                     @"SP--, D=*SP",
                     p,
@@ -200,7 +193,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                         \\@{d}
                         \\D=M
                         \\{s}
-                        \\
                     , .{
                         5 + cmd.arg2.?,
                         @"*SP=D, SP++",
@@ -210,7 +202,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                         \\{s}
                         \\@{d}
                         \\M=D
-                        \\
                     , .{
                         @"SP--, D=*SP",
                         5 + cmd.arg2.?,
@@ -225,7 +216,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                         \\A=D+A
                         \\D=M
                         \\{s}
-                        \\
                     , .{
                         map.get(cmd.arg1).?,
                         cmd.arg2.?,
@@ -243,7 +233,6 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
                         \\@R13
                         \\A=M
                         \\M=D
-                        \\
                     , .{
                         map.get(cmd.arg1).?,
                         cmd.arg2.?,
@@ -256,4 +245,28 @@ pub fn pushpop(cmd: Command, buffer: []u8, basename: []const u8) ![]const u8 {
     }
 
     return buf;
+}
+
+pub fn label(cmd: Command, buffer: []u8) ![]const u8 {
+    return try std.fmt.bufPrint(buffer,
+        \\({s})
+    , .{cmd.arg1});
+}
+
+pub fn goto(cmd: Command, buffer: []u8) ![]const u8 {
+    return try std.fmt.bufPrint(buffer,
+        \\@{s}
+        \\0;JMP
+    , .{cmd.arg1});
+}
+
+pub fn if_goto(cmd: Command, buffer: []u8) ![]const u8 {
+    return try std.fmt.bufPrint(buffer,
+        \\{s}
+        \\@{s}
+        \\D;JNE
+    , .{
+        @"SP--, D=*SP",
+        cmd.arg1,
+    });
 }
