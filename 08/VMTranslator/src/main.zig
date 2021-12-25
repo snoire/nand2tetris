@@ -33,30 +33,27 @@ pub fn main() anyerror!void {
 
     const linebuf = try allocator.alloc(u8, 1024);
     defer allocator.free(linebuf);
-    const cmdbuf = try allocator.alloc(u8, 1024);
-    defer allocator.free(cmdbuf);
 
-    try codewriter.init(allocator);
+    try codewriter.init(allocator, writer);
     defer codewriter.deinit();
 
     var basename = std.fs.path.basename(vmfilename);
-    basename = basename[0 .. basename.len - 3]; // file name without extension ".vm"
+    try codewriter.setFileName(basename[0 .. basename.len - 3]); // file name without extension ".vm"
 
     while (try parser.nextLine(reader, linebuf)) |line| {
-        var cmd = try parser.parseCMD(line);
-        if (cmd != null) {
+        if (try parser.parseCMD(line)) |cmd| {
             try writer.print("// {s}\n", .{line});
 
-            var code: []const u8 = switch (cmd.?.type) {
-                .C_PUSH, .C_POP => try codewriter.pushpop(cmd.?, cmdbuf, basename),
-                .C_ARITHMETIC => try codewriter.arithmetic(cmd.?, cmdbuf),
-                .C_LABEL => try codewriter.label(cmd.?, cmdbuf),
-                .C_GOTO => try codewriter.goto(cmd.?, cmdbuf),
-                .C_IF => try codewriter.if_goto(cmd.?, cmdbuf),
-                else => unreachable,
-            };
-
-            try writer.print("{s}\n", .{code});
+            switch (cmd.type) {
+                .C_PUSH, .C_POP => try codewriter.pushpop(cmd),
+                .C_ARITHMETIC => try codewriter.arithmetic(cmd),
+                .C_LABEL => try codewriter.label(cmd),
+                .C_GOTO => try codewriter.goto(cmd),
+                .C_IF => try codewriter.if_goto(cmd),
+                .C_CALL => try codewriter.call(cmd),
+                .C_FUNCTION => try codewriter.function(cmd),
+                .C_RETURN => try codewriter.@"return"(),
+            }
         }
     }
 }
