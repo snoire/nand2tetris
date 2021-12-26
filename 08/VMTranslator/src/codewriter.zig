@@ -37,7 +37,7 @@ var fileNameBuf: [std.os.NAME_MAX]u8 = undefined;
 var fileName: []u8 = undefined;
 var labelPrefix: []const u8 = undefined; // "file.func" or "file" if func is null
 
-pub fn init(allocator: Allocator, wt: Writer) !void {
+pub fn init(allocator: Allocator, wt: Writer, useStartupCode: bool) !void {
     writer = wt;
 
     map = std.StringHashMap([]const u8).init(allocator);
@@ -52,18 +52,20 @@ pub fn init(allocator: Allocator, wt: Writer) !void {
         try map.put(pair.@"0", pair.@"1");
     }
 
-    // write bootstrap code
-    // SP=256
-    try writer.print(
-        \\@256
-        \\D=A
-        \\@SP
-        \\M=D
-        \\
-    , .{});
+    if (useStartupCode) {
+        // write bootstrap code
+        // SP=256
+        try writer.print(
+            \\@256
+            \\D=A
+            \\@SP
+            \\M=D
+            \\
+        , .{});
 
-    // call Sys.init
-    try call(.{ .type = .C_CALL, .arg1 = "Sys.init", .arg2 = 0 });
+        // call Sys.init
+        try call(.{ .type = .C_CALL, .arg1 = "Sys.init", .arg2 = 0 });
+    }
 }
 
 pub fn deinit() void {

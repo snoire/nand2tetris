@@ -21,6 +21,7 @@ pub fn main() anyerror!void {
     const stat = try file.stat();
     var asmfilename: []u8 = undefined;
     var outputDir: std.fs.Dir = undefined;
+    var useStartupCode: bool = false;
 
     if (stat.kind == .File) {
         const noextension = filename[0 .. filename.len - 2]; // file name without extension "vm"
@@ -29,6 +30,7 @@ pub fn main() anyerror!void {
     } else if (stat.kind == .Directory) {
         asmfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ filename, "/", std.fs.path.basename(filename), ".asm" });
         outputDir = try cwd.openDir(filename, .{ .iterate = true });
+        useStartupCode = true;
     } else {
         unreachable;
     }
@@ -40,7 +42,7 @@ pub fn main() anyerror!void {
     defer asmfile.close();
     const writer = asmfile.writer();
 
-    try codewriter.init(allocator, writer);
+    try codewriter.init(allocator, writer, useStartupCode);
     defer codewriter.deinit();
 
     const linebuf = try allocator.alloc(u8, 1024);
