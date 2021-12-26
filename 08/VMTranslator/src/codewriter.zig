@@ -51,6 +51,19 @@ pub fn init(allocator: Allocator, wt: Writer) !void {
     inline for (kvpair) |pair| {
         try map.put(pair.@"0", pair.@"1");
     }
+
+    // write bootstrap code
+    // SP=256
+    try writer.print(
+        \\@256
+        \\D=A
+        \\@SP
+        \\M=D
+        \\
+    , .{});
+
+    // call Sys.init
+    try call(.{ .type = .C_CALL, .arg1 = "Sys.init", .arg2 = 0 });
 }
 
 pub fn deinit() void {
@@ -186,6 +199,7 @@ pub fn pushpop(cmd: Command) !void {
                     \\
                 , .{
                     // 不能这么写，好像只运行一次
+                    // 已知 bug：https://github.com/ziglang/zig/issues/5230
                     //if (cmd.arg2.? == 0) "THIS" else "THAT",
                     p,
                     @"*SP=D, SP++",
@@ -392,12 +406,23 @@ pub fn function(cmd: Command) !void {
 }
 
 pub fn @"return"() !void {
-    // R15=LCL, *ARG=pop(), SP=ARG+1
+    // 0 个参数时, ARG 和 Return IP 是同一个，retAddr 会被覆盖，所以要先存起来
+    // R15=LCL, R14=*(LCL-5)
     try writer.print(
         \\@LCL
         \\D=M
         \\@R15
         \\M=D
+        \\@5
+        \\A=D-A
+        \\D=M
+        \\@R14
+        \\M=D
+        \\
+    , .{});
+
+    // *ARG=pop(), SP=ARG+1
+    try writer.print(
         \\{s}
         \\@ARG
         \\A=M
@@ -422,10 +447,10 @@ pub fn @"return"() !void {
         , .{symbol});
     }
 
-    // goto *(R15-1)
+    // goto *R14
     try writer.print(
-        \\@R15
-        \\A=M-1
+        \\@R14
+        \\A=M
         \\0;JMP
         \\
     , .{});

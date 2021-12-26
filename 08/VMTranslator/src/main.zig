@@ -40,11 +40,11 @@ pub fn main() anyerror!void {
     defer asmfile.close();
     const writer = asmfile.writer();
 
-    const linebuf = try allocator.alloc(u8, 1024);
-    defer allocator.free(linebuf);
-
     try codewriter.init(allocator, writer);
     defer codewriter.deinit();
+
+    const linebuf = try allocator.alloc(u8, 1024);
+    defer allocator.free(linebuf);
 
     // iterate over the outputDir to find the .vm files in it
     var iter = outputDir.iterate();
