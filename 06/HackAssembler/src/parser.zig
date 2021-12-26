@@ -4,7 +4,7 @@ const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 const File = std.fs.File;
 
-fn nextLine(allocator: *Allocator, asmfile: File) !?[]const u8 {
+fn nextLine(allocator: Allocator, asmfile: File) !?[]const u8 {
     const buffer = try allocator.alloc(u8, 1024);
     const reader = asmfile.reader();
 
@@ -77,13 +77,13 @@ pub const Parser = struct {
     statements: std.ArrayList([]const u8),
     symtable: std.StringHashMap(usize),
 
-    pub fn init(allocator: *Allocator, asmfile: File) !Self {
+    pub fn init(allocator: Allocator, asmfile: File) !Self {
         var symtable = std.StringHashMap(usize).init(allocator);
         var list = std.ArrayList([]const u8).init(allocator);
         var arena = std.heap.ArenaAllocator.init(allocator);
 
         var pc: usize = 0;
-        while (try nextLine(&arena.allocator, asmfile)) |line| {
+        while (try nextLine(arena.allocator(), asmfile)) |line| {
             var ins = try trimLine(&symtable, line, &pc);
             if (ins != null) {
                 try list.append(ins.?);

@@ -79,7 +79,7 @@ pub const Code = struct {
     jmap: std.StringHashMap([]const u8),
     symtable: *std.StringHashMap(usize),
 
-    pub fn init(allocator: *Allocator, symtable: *std.StringHashMap(usize)) !Self {
+    pub fn init(allocator: Allocator, symtable: *std.StringHashMap(usize)) !Self {
         var dmap = std.StringHashMap([]const u8).init(allocator);
         inline for (dSet) |pair| {
             try dmap.put(pair.@"0", pair.@"1");
