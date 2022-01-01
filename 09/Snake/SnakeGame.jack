@@ -33,11 +33,11 @@ class SnakeGame {
     /** move the snake */
     method void moveSnake() {
         // nextX: [0, 31], nextY: [0, 15]
-        var int position, nextX, nextY;
+        var int oldposition, newposition, nextX, nextY;
 
-        let position = snake.getSnakeHeadPosition();
-        let nextX = Utils.mod(position, 32);
-        let nextY = position / 32;
+        let oldposition = snake.getSnakeHeadPosition();
+        let nextX = Utils.mod(oldposition, 32);
+        let nextY = oldposition / 32;
 
 
         if (direction = 1) { // right
@@ -65,7 +65,19 @@ class SnakeGame {
             }
         }
 
-        let position = snake.moveto(nextX, nextY);
+        let newposition = nextX + (nextY * 32);
+
+        // eats the food
+        if (food.getX() + (food.getY() * 32) = newposition) {
+            do snake.eat(nextX, nextY);
+            do map.set(newposition, 1);
+            do map.decNum();
+            do createFood();
+        } else {
+            let oldposition = snake.moveto(nextX, nextY);
+            do map.set(oldposition, 0);
+            do map.set(newposition, 1);
+        }
         return;
     }
 
