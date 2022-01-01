@@ -14,20 +14,36 @@ class SnakeGame {
 
     /** Disposes this game. */
     method void dispose() {
-        //do Sys.halt();
         do snake.dispose();
         return;
     }
 
     /** Runs the game: handles the user's inputs and moves the square accordingly */
     method void run() {
-        var int i;
-        let i = 0;
-        while (i < 29) {
-            do Sys.wait(400);
-            let snake = snake.move();
-            let i = i + 1;
+        var int timer;
+        var char key;  // the key currently pressed by the user
+        var boolean exit;
+        let timer = 0;
+        let exit = false;
+
+        while (~exit) {
+            let key = Keyboard.keyPressed();
+
+            if (key = 81)  { let exit = true; }             // q key
+            if (key = 132) { do snake.setDirection(0); }    // right arrow
+            if (key = 130) { do snake.setDirection(1); }    // left arrow
+            if (key = 133) { do snake.setDirection(2); }    // down arrow
+            if (key = 131) { do snake.setDirection(3); }    // up arrow
+
+            if (timer > 60) {
+                let snake = snake.move();
+                let timer = 0;
+            }
+
+            do Sys.wait(5);     // delays the next movement
+            let timer = timer + 1;
         }
+
         return;
     }
 }

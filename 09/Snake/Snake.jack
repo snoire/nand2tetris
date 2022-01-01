@@ -26,6 +26,7 @@ class Snake {
     method Snake getNext() { return next; }
     method void setPrior(Snake snake) { let prior = snake; return; }
     method void setNext(Snake snake) { let next = snake; return; }
+    method void setDirection(int d) { let direction = d; return; }
 
     /** Disposes this Snake by recursively disposing its tail. */
     method void dispose() {
