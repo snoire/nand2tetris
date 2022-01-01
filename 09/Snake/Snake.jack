@@ -41,6 +41,7 @@ class Snake {
 
     /** Moving the snake */
     method Snake move() {
+        // nextX: [0, 31], nextY: [0, 15]
         var int nextX, nextY;
         var Snake tbremoved;
         let nextX = square.getX();
@@ -48,15 +49,27 @@ class Snake {
 
         if (direction = 1) { // right
             let nextX = nextX + 1;
+            if (nextX > 31) {
+                let nextX = 0;
+            }
         }
         if (direction = -1) { // left
             let nextX = nextX - 1;
+            if (nextX < 0) {
+                let nextX = 31;
+            }
         }
         if (direction = -2) { // down
             let nextY = nextY + 1;
+            if (nextY > 15) {
+                let nextY = 0;
+            }
         }
         if (direction = 2) { // up
             let nextY = nextY - 1;
+            if (nextY < 0) {
+                let nextY = 15;
+            }
         }
 
         let tbremoved = tail;
