@@ -1,4 +1,6 @@
 class Utils {
+    static int seed;
+
 	function int mod(int a, int b) {
 		var int c;
 
@@ -11,5 +13,19 @@ class Utils {
 		}
 
 		return a;
+	}
+
+	function void srand(int s) {
+        let seed = s;
+		return;
+	}
+
+	function int rand() {
+		let seed = Utils.mod(69 * seed + 47, 9973);
+        return seed;
+	}
+
+	function int random(int range) {
+		return Utils.mod(Utils.rand(), range);
 	}
 }

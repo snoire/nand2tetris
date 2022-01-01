@@ -1,0 +1,47 @@
+class BlockMap {
+    field Array map;
+    field int num;  // number of free blocks
+
+    constructor BlockMap new() {
+        let map = Array.new(512);
+        let num = 512 - 3;
+
+        do set(0, 1);
+        do set(1, 1);
+        do set(2, 1);
+
+        return this;
+    }
+
+    /** Accessors. */
+    method int getNum() { return num; }
+    method void decNum() { let num = num - 1; return; }
+
+    /** Disposes this BlockMap. */
+    method void dispose() {
+        do map.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+
+    /** Sets the position to 1 if the block is occupied by the snake. */
+    method void set(int position, int value) {
+        let map[position] = value;
+        return;
+    }
+
+    /** Gets the nth available position. */
+    method int getAvailablePosition(int nth) {
+        var int i, n;
+        let i = 0;
+        let n = 0;
+
+        while (n < nth) {
+            if (map[i] = 0) {
+                let n = n + 1;
+            }
+            let i = i + 1;
+        }
+        return i;
+    }
+}

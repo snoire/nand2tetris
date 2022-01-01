@@ -1,11 +1,17 @@
 class SnakeGame {
-    field Snake snake;
     static int direction;  //current direction
+    field Snake snake;
+    field Square food;
+    field BlockMap map;
 
     /** Constructs a new Square Game. */
     constructor SnakeGame new() {
-        let snake = Snake.new();
+        do Utils.srand(233);
+
         let direction = 1; // right
+        let snake = Snake.new();
+        let map = BlockMap.new();
+        do createFood();
 
         return this;
     }
@@ -13,6 +19,14 @@ class SnakeGame {
     /** Disposes this game. */
     method void dispose() {
         do snake.dispose();
+        return;
+    }
+
+    /** Creates the food. */
+    method void createFood() {
+        var int position;
+        let position = map.getAvailablePosition(Utils.random(map.getNum()));
+        let food = Square.new(Utils.mod(position, 32), position / 32);
         return;
     }
 
