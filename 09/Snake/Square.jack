@@ -1,41 +1,52 @@
-/** Implements a graphical square, which is used to form the body of the snake. */
+/** Implements a 16*16 graphical square (actually it's 15*15 pixels) */
+
+//     0     ------->  x               31
+//       +------------------------------+
+//     | |                              |
+//     | |                              |
+//     v |            screen            |
+//       |                              |
+//     y |                              |
+//       |                              |
+//    15 +------------------------------+
+//
 class Square {
+    field int x, y;  // screen location of the square's top-left corner
+    field Square next;
 
-   field int x, y;  // screen location of the square's top-left corner
-   static int size; // length of this square, in pixels
+    /** Constructs a new square with a given location. */
+    constructor Square new(int Ax, int Ay) {
+        let x = Ax;
+        let y = Ay;
+        let next = null;
+        do draw();
+        return this;
+    }
 
-   /** Constructs a new square with a given location and size. */
-   constructor Square new(int Ax, int Ay, int Asize) {
-      let x = Ax;
-      let y = Ay;
-      let size = Asize;
-      do draw();
-      return this;
-   }
+    /** Accessors. */
+    method int getX() { return x; }
+    method int getY() { return y; }
+    method Square getNext() { return next; }
+    method void setNext(Square s) { let next = s; return; }
 
-   /** Accessors. */
-   method int getX() { return x; }
-   method int getY() { return y; }
-   method int getSize() { return size; }
+    /** Disposes this list by recursively disposing its tail. */
+    method void dispose() {
+        do erase();
+        do Memory.deAlloc(this);
+        return;
+    }
 
-   /** Disposes this square. */
-   method void dispose() {
-      do erase();
-      do Memory.deAlloc(this);
-      return;
-   }
+    /** Draws the square on the screen. */
+    method void draw() {
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x*16, y*16, x*16 + 14, y*16 + 14);
+        return;
+    }
 
-   /** Draws the square on the screen. */
-   method void draw() {
-      do Screen.setColor(true);
-      do Screen.drawRectangle(x*size, y*size, x*size + size - 2, y*size + size - 2);
-      return;
-   }
-
-   /** Erases the square from the screen. */
-   method void erase() {
-      do Screen.setColor(false);
-      do Screen.drawRectangle(x*size, y*size, x*size + size - 2, y*size + size - 2);
-      return;
-   }
+    /** Erases the square from the screen. */
+    method void erase() {
+        do Screen.setColor(false);
+        do Screen.drawRectangle(x*16, y*16, x*16 + 14, y*16 + 14);
+        return;
+    }
 }

@@ -1,81 +1,51 @@
 class Snake {
-    static int direction;
-    static int size;
-    field Square square;
-    field Snake prior;
-    field Snake next;
-    static Snake tail;
+    field Square head; // the head of the list, but the tail of the snake
+    field Square tail;
 
     /* Creates a Snake. */
-    constructor Snake new(Square s, Snake n) {
-        let square = s;
-        let next = n;
+    constructor Snake new() {
+        let head = Square.new(0, 0);
+        let tail = head;
 
-        if (n = null) {
-            let tail = this;
-            let size = s.getSize();
-        } else {
-            do n.setPrior(this);
-        }
+        do tail.setNext(Square.new(1, 0));
+        let tail = tail.getNext();
+
+        do tail.setNext(Square.new(2, 0));
+        let tail = tail.getNext();
 
         return this;
     }
 
     /** Accessors. */
-    method Snake getPrior() { return prior; }
-    method Snake getNext() { return next; }
-    method void setPrior(Snake snake) { let prior = snake; return; }
-    method void setNext(Snake snake) { let next = snake; return; }
-    method void setDirection(int d) { let direction = d; return; }
+    method Square getSnakeHeadPosition() { return tail.getX() + (tail.getY() * 32); }
 
-    /** Disposes this Snake by recursively disposing its tail. */
+    /** Disposes this Snake. */
     method void dispose() {
-        if (~(next = null)) {
-            do next.dispose();
+        var Square tmp;
+
+        while (~(head = null)) {
+            let tmp = head.getNext();
+            do head.dispose();
+            let head = tmp;
         }
 
-        do square.dispose();
         do Memory.deAlloc(this);
         return;
     }
 
-    /** Moving the snake */
-    method Snake move() {
-        // nextX: [0, 31], nextY: [0, 15]
-        var int nextX, nextY;
-        var Snake tbremoved;
-        let nextX = square.getX();
-        let nextY = square.getY();
+    /** Moving the snake, return the position of last square which is removed. */
+    method int moveto(int nextX, int nextY) {
+        var int position;
+        var Square tbremoved;
 
-        if (direction = 1) { // right
-            let nextX = nextX + 1;
-            if (nextX > 31) {
-                let nextX = 0;
-            }
-        }
-        if (direction = -1) { // left
-            let nextX = nextX - 1;
-            if (nextX < 0) {
-                let nextX = 31;
-            }
-        }
-        if (direction = -2) { // down
-            let nextY = nextY + 1;
-            if (nextY > 15) {
-                let nextY = 0;
-            }
-        }
-        if (direction = 2) { // up
-            let nextY = nextY - 1;
-            if (nextY < 0) {
-                let nextY = 15;
-            }
-        }
-
-        let tbremoved = tail;
-        let tail = tail.getPrior();
-        do tail.setNext(null);
+        let tbremoved = head;
+        let head = head.getNext();
+        let position = tbremoved.getX() + (tbremoved.getY() * 32);
         do tbremoved.dispose();
-        return Snake.new(Square.new(nextX, nextY, size), this);
+
+        do tail.setNext(Square.new(nextX, nextY));
+        let tail = tail.getNext();
+
+        return position;
     }
 }

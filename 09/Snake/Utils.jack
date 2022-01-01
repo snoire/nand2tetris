@@ -1,0 +1,15 @@
+class Utils {
+	function int mod(int a, int b) {
+		var int c;
+
+		let c = a / b;
+		let c = b * c;
+		let a = a - c;
+
+		if (a < 0) {
+			let a = b + a;
+		}
+
+		return a;
+	}
+}

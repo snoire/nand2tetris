@@ -4,14 +4,8 @@ class SnakeGame {
 
     /** Constructs a new Square Game. */
     constructor SnakeGame new() {
-        var int size;
-        let size = 16;
-        let snake = Snake.new(Square.new(0, 0, size), null);
-        let snake = Snake.new(Square.new(1, 0, size), snake);
-        let snake = Snake.new(Square.new(2, 0, size), snake);
-
+        let snake = Snake.new();
         let direction = 1; // right
-        do snake.setDirection(direction);
 
         return this;
     }
@@ -22,12 +16,52 @@ class SnakeGame {
         return;
     }
 
+    /** move the snake */
+    method void moveSnake() {
+        // nextX: [0, 31], nextY: [0, 15]
+        var int position, nextX, nextY;
+
+        let position = snake.getSnakeHeadPosition();
+        let nextX = Utils.mod(position, 32);
+        let nextY = position / 32;
+
+
+        if (direction = 1) { // right
+            let nextX = nextX + 1;
+            if (nextX > 31) {
+                let nextX = 0;
+            }
+        }
+        if (direction = -1) { // left
+            let nextX = nextX - 1;
+            if (nextX < 0) {
+                let nextX = 31;
+            }
+        }
+        if (direction = -2) { // down
+            let nextY = nextY + 1;
+            if (nextY > 15) {
+                let nextY = 0;
+            }
+        }
+        if (direction = 2) { // up
+            let nextY = nextY - 1;
+            if (nextY < 0) {
+                let nextY = 15;
+            }
+        }
+
+        let position = snake.moveto(nextX, nextY);
+        return;
+    }
+
     /** Runs the game: handles the user's inputs and moves the square accordingly */
     method void run() {
         var int timer;
         var char key;  // the key currently pressed by the user
         var int d;
         var boolean exit;
+
         let timer = 0;
         let exit = false;
         let d = direction;
@@ -59,8 +93,7 @@ class SnakeGame {
 
             if (timer > 60) {
                 let direction = d;
-                do snake.setDirection(direction);
-                let snake = snake.move();
+                do moveSnake();
                 let timer = 0;
             }
 
