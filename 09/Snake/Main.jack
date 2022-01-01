@@ -1,0 +1,22 @@
+class Main {
+    function void main() {
+        var int size;
+        var int i;
+        var Snake snake;
+
+        let size = 16;
+        let snake = Snake.new(Square.new(0, 0, size), null);
+        let snake = Snake.new(Square.new(1, 0, size), snake);
+        let snake = Snake.new(Square.new(2, 0, size), snake);
+
+        let i = 0;
+        while (i < 29) {
+            do Sys.wait(400);
+            let snake = snake.move();
+            let i = i + 1;
+        }
+        //do Sys.halt();
+        do snake.dispose();
+        return;
+    }
+}

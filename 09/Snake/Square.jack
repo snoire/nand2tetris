@@ -1,0 +1,41 @@
+/** Implements a graphical square, which is used to form the body of the snake. */
+class Square {
+
+   field int x, y;  // screen location of the square's top-left corner
+   static int size; // length of this square, in pixels
+
+   /** Constructs a new square with a given location and size. */
+   constructor Square new(int Ax, int Ay, int Asize) {
+      let x = Ax;
+      let y = Ay;
+      let size = Asize;
+      do draw();
+      return this;
+   }
+
+   /** Accessors. */
+   method int getX() { return x; }
+   method int getY() { return y; }
+   method int getSize() { return size; }
+
+   /** Disposes this square. */
+   method void dispose() {
+      do erase();
+      do Memory.deAlloc(this);
+      return;
+   }
+
+   /** Draws the square on the screen. */
+   method void draw() {
+      do Screen.setColor(true);
+      do Screen.drawRectangle(x*size, y*size, x*size + size - 2, y*size + size - 2);
+      return;
+   }
+
+   /** Erases the square from the screen. */
+   method void erase() {
+      do Screen.setColor(false);
+      do Screen.drawRectangle(x*size, y*size, x*size + size - 2, y*size + size - 2);
+      return;
+   }
+}

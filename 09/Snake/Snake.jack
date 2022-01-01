@@ -1,0 +1,67 @@
+class Snake {
+    static int direction;
+    static int size;
+    field Square square;
+    field Snake prior;
+    field Snake next;
+    static Snake tail;
+
+    /* Creates a Snake. */
+    constructor Snake new(Square s, Snake n) {
+        let square = s;
+        let next = n;
+
+        if (n = null) {
+            let tail = this;
+            let size = s.getSize();
+        } else {
+            do n.setPrior(this);
+        }
+
+        return this;
+    }
+
+    /** Accessors. */
+    method Snake getPrior() { return prior; }
+    method Snake getNext() { return next; }
+    method void setPrior(Snake snake) { let prior = snake; return; }
+    method void setNext(Snake snake) { let next = snake; return; }
+
+    /** Disposes this Snake by recursively disposing its tail. */
+    method void dispose() {
+        if (~(next = null)) {
+            do next.dispose();
+        }
+
+        do square.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+
+    /** Moving the snake */
+    method Snake move() {
+        var int nextX, nextY;
+        var Snake tbremoved;
+        let nextX = square.getX();
+        let nextY = square.getY();
+
+        if (direction = 0) { // right
+            let nextX = nextX + 1;
+        }
+        if (direction = 1) { // left
+            let nextX = nextX - 1;
+        }
+        if (direction = 2) { // down
+            let nextY = nextY + 1;
+        }
+        if (direction = 3) { // up
+            let nextY = nextY - 1;
+        }
+
+        let tbremoved = tail;
+        let tail = tail.getPrior();
+        do tail.setNext(null);
+        do tbremoved.dispose();
+        return Snake.new(Square.new(nextX, nextY, size), this);
+    }
+}
