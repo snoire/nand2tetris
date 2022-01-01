@@ -46,16 +46,16 @@ class Snake {
         let nextX = square.getX();
         let nextY = square.getY();
 
-        if (direction = 0) { // right
+        if (direction = 1) { // right
             let nextX = nextX + 1;
         }
-        if (direction = 1) { // left
+        if (direction = -1) { // left
             let nextX = nextX - 1;
         }
-        if (direction = 2) { // down
+        if (direction = -2) { // down
             let nextY = nextY + 1;
         }
-        if (direction = 3) { // up
+        if (direction = 2) { // up
             let nextY = nextY - 1;
         }
 
