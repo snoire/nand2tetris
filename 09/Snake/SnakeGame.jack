@@ -18,7 +18,9 @@ class SnakeGame {
 
     /** Disposes this game. */
     method void dispose() {
+        do map.dispose();
         do snake.dispose();
+        do food.dispose();
         return;
     }
 
@@ -70,14 +72,14 @@ class SnakeGame {
         // eats the food
         if (food.getX() + (food.getY() * 32) = newposition) {
             do snake.eat(nextX, nextY);
-            do map.set(newposition, 1);
-            do map.decNum();
+            do map.set(newposition, true);
             do createFood();
         } else {
             let oldposition = snake.moveto(nextX, nextY);
-            do map.set(oldposition, 0);
-            do map.set(newposition, 1);
+            do map.set(oldposition, false);
+            do map.set(newposition, true);
         }
+
         return;
     }
 

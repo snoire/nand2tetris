@@ -1,47 +1,109 @@
+//     0     ------->  x               31
+//       +------------------------------+
+//     | |0 1 2 3 ................... 31|
+//     | |32 ........................ 63|
+//     v |                              |
+//       |            screen            |
+//     y |                              |
+//       |480 ...................... 511|
+//    15 +------------------------------+
+//                position map
+//
 class BlockMap {
+    static Array magic;
     field Array map;
-    field int num;  // number of free blocks
+    field Array nums;   // number of free blocks of each register
+    field int num;      // total number of free blocks
 
     constructor BlockMap new() {
-        let map = Array.new(512);
-        let num = 512 - 3;
+        var int i;
+        let map = Array.new(32);
+        let nums = Array.new(32);
+        let magic = Array.new(16);
 
-        do set(0, 1);
-        do set(1, 1);
-        do set(2, 1);
+        let magic[0] = 1;
+        let magic[1] = 2;
+        let magic[2] = 4;
+        let magic[3] = 8;
+        let magic[4] = 16;
+        let magic[5] = 32;
+        let magic[6] = 64;
+        let magic[7] = 128;
+        let magic[8] = 256;
+        let magic[9] = 512;
+        let magic[10] = 1024;
+        let magic[11] = 2048;
+        let magic[12] = 4096;
+        let magic[13] = 8192;
+        let magic[14] = 16384;
+        let magic[15] = 32767 + 1;
+
+        let num = 512;
+        let i = 0;
+        while (i < 32) {
+            let nums[i] = 16;
+            let i = i + 1;
+        }
+
+        // three blocks are occupied by the snake
+        do set(0, true);
+        do set(1, true);
+        do set(2, true);
 
         return this;
     }
 
     /** Accessors. */
     method int getNum() { return num; }
-    method void decNum() { let num = num - 1; return; }
 
     /** Disposes this BlockMap. */
     method void dispose() {
         do map.dispose();
+        do nums.dispose();
+        do magic.dispose();
         do Memory.deAlloc(this);
         return;
     }
 
     /** Sets the position to 1 if the block is occupied by the snake. */
-    method void set(int position, int value) {
-        let map[position] = value;
+    method void set(int position, boolean value) {
+        var int i, j;
+        let i = position / 16;
+        let j = Utils.mod(position, 16);
+
+        if (value) {
+            let map[i] = map[i] | magic[j];
+            let nums[i] = nums[i] - 1;
+            let num = num - 1;
+        } else {
+            let map[i] = map[i] & ~magic[j];
+            let nums[i] = nums[i] + 1;
+            let num = num + 1;
+        }
         return;
     }
 
     /** Gets the nth available position. */
     method int getAvailablePosition(int nth) {
-        var int i, n;
-        let i = 0;
+        var int i, j, n;
         let n = 0;
+        let i = -1;
 
         while (n < nth) {
-            if (map[i] = 0) {
+            let i = i + 1;
+            let n = n + nums[i];
+        }
+
+        let nth = n - nth;
+        let n = 0;
+        let j = 15;
+        while (n < nth) {
+            if (map[i] & magic[j] = 0) {
                 let n = n + 1;
             }
-            let i = i + 1;
+            let j = j - 1;
         }
-        return i;
+
+        return 16*i + j;
     }
 }
