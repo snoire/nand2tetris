@@ -55,4 +55,19 @@ class Snake {
         let tail = tail.getNext();
         return;
     }
+
+    /** has crashed into itself? */
+    method boolean crashCheck(int position) {
+        var Square current;
+        let current = head.getNext(); // exclude the snake's tail
+
+        while (~(current = null)) {
+            if (current.getX() + (current.getY() * 32) = position) {
+                return true;
+            }
+            let current = current.getNext();
+        }
+
+        return false;
+    }
 }

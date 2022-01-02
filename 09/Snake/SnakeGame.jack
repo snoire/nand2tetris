@@ -33,7 +33,7 @@ class SnakeGame {
     }
 
     /** move the snake */
-    method void moveSnake() {
+    method boolean moveSnake() {
         // nextX: [0, 31], nextY: [0, 15]
         var int oldposition, newposition, nextX, nextY;
 
@@ -69,18 +69,23 @@ class SnakeGame {
 
         let newposition = nextX + (nextY * 32);
 
-        // eats the food
-        if (food.getX() + (food.getY() * 32) = newposition) {
-            do snake.eat(nextX, nextY);
-            do map.set(newposition, true);
-            do createFood();
+        if (snake.crashCheck(newposition)) {
+            do Output.printString("Game Over!");
+            return false;
         } else {
-            let oldposition = snake.moveto(nextX, nextY);
-            do map.set(oldposition, false);
-            do map.set(newposition, true);
+            // eats the food
+            if (food.getX() + (food.getY() * 32) = newposition) {
+                do snake.eat(nextX, nextY);
+                do map.set(newposition, true);
+                do createFood();
+            } else {
+                let oldposition = snake.moveto(nextX, nextY);
+                do map.set(oldposition, false);
+                do map.set(newposition, true);
+            }
         }
 
-        return;
+        return true;
     }
 
     /** Runs the game: handles the user's inputs and moves the square accordingly */
@@ -121,7 +126,7 @@ class SnakeGame {
 
             if (timer > 60) {
                 let direction = d;
-                do moveSnake();
+                if (~moveSnake()) { let exit = true; }
                 let timer = 0;
             }
 
