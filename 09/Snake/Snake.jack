@@ -50,8 +50,8 @@ class Snake {
     }
 
     /** Eats the food. */
-    method void eat(int nextX, int nextY) {
-        do tail.setNext(Square.new(nextX, nextY));
+    method void eat(Square food) {
+        do tail.setNext(food);
         let tail = tail.getNext();
         return;
     }

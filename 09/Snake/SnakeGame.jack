@@ -75,7 +75,7 @@ class SnakeGame {
         } else {
             // eats the food
             if (food.getX() + (food.getY() * 32) = newposition) {
-                do snake.eat(nextX, nextY);
+                do snake.eat(food);
                 do map.set(newposition, true);
                 do createFood();
             } else {
