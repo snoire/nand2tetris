@@ -2,6 +2,7 @@ const std = @import("std");
 const print = std.debug.print;
 const allocator = std.heap.page_allocator;
 const tokenizer = @import("tokenizer.zig");
+const compiler = @import("compiler.zig");
 const MAX_FILE_SIZE = 0x1000000;
 
 pub fn main() anyerror!void {
@@ -51,12 +52,12 @@ fn handleFile(outputDir: std.fs.Dir, input: []const u8) !void {
     const bytes = try jackfile.readToEndAlloc(allocator, MAX_FILE_SIZE);
     defer allocator.free(bytes);
 
-    const output = try std.mem.concat(allocator, u8, &[_][]const u8{ input[0 .. input.len - 5], "T.xml" });
+    const output = try std.mem.concat(allocator, u8, &[_][]const u8{ input[0 .. input.len - 4], "xml" });
     defer allocator.free(output);
 
-    const xmlfile = try outputDir.createFile(output, .{ .truncate = true });
-    defer xmlfile.close();
-    const writer = xmlfile.writer();
+    //const xmlfile = try outputDir.createFile(output, .{ .truncate = true });
+    //defer xmlfile.close();
+    //const writer = xmlfile.writer();
 
     //print("xml: {s}\n", .{output});
     const parser = tokenizer.Parser;
@@ -65,11 +66,13 @@ fn handleFile(outputDir: std.fs.Dir, input: []const u8) !void {
     defer t.deinit();
 
     var tokens = try t.scan();
-    try writer.print("<tokens>\n", .{});
+    //try writer.print("<tokens>\n", .{});
+    //for (tokens.items) |token| {
+    //    try writer.print("{}\n", .{token});
+    //}
+    //try writer.print("</tokens>\n", .{});
 
-    for (tokens.items) |token| {
-        try writer.print("{}\n", .{token});
-    }
-
-    try writer.print("</tokens>\n", .{});
+    //var c = compiler{ .tokens = tokens.items, .writer = writer };
+    var c = compiler{ .tokens = tokens.items, .writer = std.io.getStdOut().writer() };
+    c.compileClass();
 }
