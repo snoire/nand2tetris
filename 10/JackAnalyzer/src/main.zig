@@ -55,9 +55,9 @@ fn handleFile(outputDir: std.fs.Dir, input: []const u8) !void {
     const output = try std.mem.concat(allocator, u8, &[_][]const u8{ input[0 .. input.len - 4], "xml" });
     defer allocator.free(output);
 
-    //const xmlfile = try outputDir.createFile(output, .{ .truncate = true });
-    //defer xmlfile.close();
-    //const writer = xmlfile.writer();
+    const xmlfile = try outputDir.createFile(output, .{ .truncate = true });
+    defer xmlfile.close();
+    const writer = xmlfile.writer();
 
     //print("xml: {s}\n", .{output});
     const parser = tokenizer.Parser;
@@ -72,7 +72,7 @@ fn handleFile(outputDir: std.fs.Dir, input: []const u8) !void {
     //}
     //try writer.print("</tokens>\n", .{});
 
-    //var c = compiler{ .tokens = tokens.items, .writer = writer };
-    var c = compiler{ .tokens = tokens.items, .writer = std.io.getStdOut().writer() };
+    var c = compiler{ .tokens = tokens.items, .writer = writer };
+    //var c = compiler{ .tokens = tokens.items, .writer = std.io.getStdOut().writer() };
     c.compileClass();
 }

@@ -102,7 +102,17 @@ fn subroutineDec(self: *Self) void {
 }
 
 fn parameterList(self: *Self) void {
-    _ = self;
+    if (!self.eql(&[_][]const u8{")"})) {
+        self.print("{}", .{self.next()});
+        self.print("{}", .{self.next()});
+
+        var i: usize = 1;
+        while (self.eql(&[_][]const u8{","})) : (i += 1) {
+            self.print("{}", .{self.next()});
+            self.print("{}", .{self.next()});
+            self.print("{}", .{self.next()});
+        }
+    }
 }
 
 fn subroutineBody(self: *Self) void {
@@ -183,7 +193,14 @@ fn ifStatement(self: *Self) void {
 }
 
 fn whileStatement(self: *Self) void {
-    _ = self;
+    self.print("{}", .{self.next()});
+    self.print("{}", .{self.next()});
+    self.compile("expression");
+    self.print("{}", .{self.next()});
+
+    self.print("{}", .{self.next()});
+    self.compile("statements");
+    self.print("{}", .{self.next()});
 }
 
 fn doStatement(self: *Self) void {
@@ -281,6 +298,7 @@ fn expressionList(self: *Self) usize {
         self.compile("expression");
         var i: usize = 1;
         while (self.eql(&[_][]const u8{","})) : (i += 1) {
+            self.print("{}", .{self.next()});
             self.compile("expression");
         }
         break :blk i;
