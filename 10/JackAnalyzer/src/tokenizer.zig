@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Token = struct {
     const Self = @This();
-    const TokenType = enum(u3) {
+    pub const TokenType = enum(u3) {
         KEYWORD,
         SYMBOL,
         IDENTIFIER,
