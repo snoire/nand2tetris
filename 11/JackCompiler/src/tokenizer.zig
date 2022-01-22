@@ -83,7 +83,7 @@ pub const Parser = struct {
 
     buf: []const u8,
     pos: usize,
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     tokens: std.ArrayList(Token),
     keywords: std.StringHashMap(Token.KeyWord),
 

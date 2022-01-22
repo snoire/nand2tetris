@@ -72,7 +72,8 @@ fn handleFile(outputDir: std.fs.Dir, input: []const u8) !void {
     //}
     //try writer.print("</tokens>\n", .{});
 
-    var c = compiler{ .tokens = tokens.items, .writer = writer };
-    //var c = compiler{ .tokens = tokens.items, .writer = std.io.getStdOut().writer() };
-    c.compileClass();
+    //var c = compiler.init(allocator, tokens.items, std.io.getStdOut().writer());
+    var c = compiler.init(allocator, tokens.items, writer);
+    defer c.deinit();
+    try c.compileClass();
 }
