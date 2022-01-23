@@ -46,8 +46,10 @@ pub fn varCount(self: Self, kind: Kind) usize {
     return self.indexes[@enumToInt(kind)];
 }
 
-pub fn kindOf(self: Self, name: []const u8) Kind {
-    return if (self.subroutineTable.get(name)) |variable| variable.kind else self.classTable.get(name).?.kind;
+pub fn kindOf(self: Self, name: []const u8) ?Kind {
+    return if (self.subroutineTable.get(name)) |variable| variable.kind else blk: {
+        break :blk if (self.classTable.get(name)) |v| v.kind else null;
+    };
 }
 
 pub fn typeOf(self: Self, name: []const u8) []const u8 {

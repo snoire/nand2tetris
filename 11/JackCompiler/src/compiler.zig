@@ -24,6 +24,7 @@ className: []const u8 = undefined,
 funcNameBuf: [128]u8 = undefined,
 funcName: []const u8 = undefined,
 labelNameBuf: [64]u8 = undefined,
+subroutineType: KeyWord = undefined,
 
 if_counter: usize = 0,
 while_counter: usize = 0,
@@ -158,8 +159,8 @@ fn subroutineDec(self: *Self) !void {
     self.table.reset();
 
     self.print("{}", .{self.tokens[self.index]}); // "constructor", "function", "method"
-    const subroutineType = self.next().?.keyword.?;
-    if (subroutineType == .METHOD) {
+    self.subroutineType = self.next().?.keyword.?;
+    if (self.subroutineType == .METHOD) {
         try self.table.define("this", self.className, .argument);
     }
     self.print("{}", .{self.next()}); // 'void' | type
@@ -203,6 +204,19 @@ fn subroutineBody(self: *Self) !void {
     }
 
     self.vm.function(self.funcName, self.table.varCount(.local));
+    switch (self.subroutineType) {
+        .CONSTRUCTOR => {
+            self.vm.push(.constant, self.table.varCount(.field));
+            self.vm.call("Memory.alloc", 1);
+            self.vm.pop(.pointer, 0);
+        },
+        .METHOD => {
+            self.vm.push(.argument, 0);
+            self.vm.pop(.pointer, 0);
+        },
+        .FUNCTION => {},
+        else => unreachable,
+    }
     try self.compile("statements");
 
     self.print("{}", .{self.next()}); // }
@@ -247,7 +261,7 @@ fn letStatement(self: *Self) BufPrintError!void {
     self.print("{}", .{self.next()}); // LET
     self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
     var name = self.next().?.lexeme;
-    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name), self.table.indexOf(name) });
+    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name).?, self.table.indexOf(name) });
 
     // ('[' expression ']')?
     if (self.eql('[')) {
@@ -258,7 +272,7 @@ fn letStatement(self: *Self) BufPrintError!void {
 
     self.print("{}", .{self.next()}); // =
     try self.compile("expression");
-    self.vm.pop(@intToEnum(Segment, @enumToInt(self.table.kindOf(name))), self.table.indexOf(name));
+    self.vm.pop(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
     self.print("{}", .{self.next()}); // ;
 }
 
@@ -350,19 +364,29 @@ fn returnStatement(self: *Self) BufPrintError!void {
 }
 
 fn subroutineCall(self: *Self) BufPrintError!void {
+    var nArgs: usize = 0;
     var nextToken = self.tokens[self.index + 1];
-    self.funcName = "";
 
-    if (std.mem.eql(u8, nextToken.lexeme, ".")) {
+    const className = if (std.mem.eql(u8, nextToken.lexeme, ".")) blk1: {
         self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
-        self.funcName = try bufPrint(&self.funcNameBuf, "{s}.", .{self.next().?.lexeme});
+        const name = self.next().?.lexeme;
+        const classname = if (self.table.kindOf(name)) |var_kind| blk2: {
+            self.vm.push(@intToEnum(Segment, @enumToInt(var_kind)), self.table.indexOf(name));
+            nArgs += 1;
+            break :blk2 self.table.typeOf(name);
+        } else name;
         self.print("{}", .{self.next()}); // .
-    }
+        break :blk1 classname;
+    } else blk: {
+        self.vm.push(.pointer, 0);
+        nArgs += 1;
+        break :blk self.className;
+    };
 
     self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
-    self.funcName = try bufPrint(&self.funcNameBuf, "{s}{s}", .{ self.funcName, self.next().?.lexeme });
+    self.funcName = try bufPrint(&self.funcNameBuf, "{s}.{s}", .{ className, self.next().?.lexeme });
     self.print("{}", .{self.next()}); // (
-    const nArgs = try self.compile("expressionList");
+    nArgs += try self.compile("expressionList");
     self.print("{}", .{self.next()}); // )
     self.vm.call(self.funcName, nArgs);
 }
@@ -400,7 +424,10 @@ fn term(self: *Self) BufPrintError!void {
         .KEYWORD => {
             switch (token.keyword.?) {
                 // keywordConstant
-                .THIS => self.print("{}", .{self.next()}),
+                .THIS => {
+                    self.print("{}", .{self.next()});
+                    self.vm.push(.pointer, 0);
+                },
                 .TRUE, .FALSE, .NULL => |key| {
                     self.print("{}", .{self.next()});
                     self.vm.push(.constant, 0);
@@ -439,7 +466,7 @@ fn term(self: *Self) BufPrintError!void {
                 '[' => {
                     self.print("{}", .{self.tokens[self.index]}); // varName
                     var name = self.next().?.lexeme;
-                    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name), self.table.indexOf(name) });
+                    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name).?, self.table.indexOf(name) });
 
                     self.print("{}", .{self.next()}); // [
                     try self.compile("expression");
@@ -453,8 +480,8 @@ fn term(self: *Self) BufPrintError!void {
                 else => {
                     self.print("{}", .{self.tokens[self.index]}); // varName
                     var name = self.next().?.lexeme;
-                    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name), self.table.indexOf(name) });
-                    self.vm.push(@intToEnum(Segment, @enumToInt(self.table.kindOf(name))), self.table.indexOf(name));
+                    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name).?, self.table.indexOf(name) });
+                    self.vm.push(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
                 },
             }
         },
