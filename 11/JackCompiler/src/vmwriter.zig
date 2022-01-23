@@ -1,15 +1,15 @@
 const std = @import("std");
 const Self = @This();
 
-const Segment = enum {
+pub const Segment = enum(u3) {
+    this,
+    static,
     argument,
     local,
-    static,
-    constant,
-    this,
     that,
     pointer,
     temp,
+    constant,
 };
 
 const Command = enum {
@@ -34,8 +34,8 @@ pub fn push(self: *Self, segment: Segment, index: usize) void {
     self.print("push {s} {d}\n", .{ @tagName(segment), index });
 }
 
-pub fn pop(self: *Self, comptime segment: Segment, index: usize) void {
-    comptime std.debug.assert(segment != .constant);
+pub fn pop(self: *Self, segment: Segment, index: usize) void {
+    std.debug.assert(segment != .constant);
     self.print("pop {s} {d}\n", .{ @tagName(segment), index });
 }
 

@@ -1,4 +1,6 @@
 const std = @import("std");
+const bufPrint = std.fmt.bufPrint;
+const BufPrintError = std.fmt.BufPrintError;
 const Token = @import("tokenizer.zig").Token;
 const TokenType = Token.TokenType;
 const KeyWord = Token.KeyWord;
@@ -6,6 +8,7 @@ const KeyWord = Token.KeyWord;
 const SymbolTable = @import("symboltable.zig");
 const VarKind = SymbolTable.Kind;
 const VMWriter = @import("vmwriter.zig");
+const Segment = VMWriter.Segment;
 const Self = @This();
 
 index: usize = 0,
@@ -20,6 +23,11 @@ whitespace: std.json.StringifyOptions.Whitespace = .{
 className: []const u8 = undefined,
 funcNameBuf: [128]u8 = undefined,
 funcName: []const u8 = undefined,
+labelNameBuf: [64]u8 = undefined,
+
+if_counter: usize = 0,
+while_counter: usize = 0,
+
 table: SymbolTable,
 vm: VMWriter,
 
@@ -156,7 +164,7 @@ fn subroutineDec(self: *Self) !void {
     }
     self.print("{}", .{self.next()}); // 'void' | type
     self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
-    self.funcName = try std.fmt.bufPrint(&self.funcNameBuf, "{s}.{s}", .{ self.className, self.next().?.lexeme });
+    self.funcName = try bufPrint(&self.funcNameBuf, "{s}.{s}", .{ self.className, self.next().?.lexeme });
 
     self.print("{}", .{self.next()}); // (
     try self.compile("parameterList");
@@ -166,8 +174,6 @@ fn subroutineDec(self: *Self) !void {
 }
 
 fn parameterList(self: *Self) !void {
-    var i: usize = 0;
-
     if (!self.eql(')')) {
         self.print("{}", .{self.tokens[self.index]}); // type
         var varType = self.next().?.lexeme;
@@ -177,8 +183,7 @@ fn parameterList(self: *Self) !void {
 
         try self.table.define(name, varType, .argument);
 
-        i += 1;
-        while (self.eql(',')) : (i += 1) {
+        while (self.eql(',')) {
             self.print("{}", .{self.next()}); // ,
             self.print("{}", .{self.tokens[self.index]}); // type
             varType = self.next().?.lexeme;
@@ -188,8 +193,6 @@ fn parameterList(self: *Self) !void {
             try self.table.define(name, varType, .argument);
         }
     }
-
-    self.vm.function(self.funcName, i);
 }
 
 fn subroutineBody(self: *Self) !void {
@@ -199,6 +202,7 @@ fn subroutineBody(self: *Self) !void {
         try self.compile("varDec");
     }
 
+    self.vm.function(self.funcName, self.table.varCount(.local));
     try self.compile("statements");
 
     self.print("{}", .{self.next()}); // }
@@ -223,23 +227,23 @@ fn varDec(self: *Self) !void {
     self.print("{}", .{self.next()}); // ;
 }
 
-// 函数嵌套导致无法自动推测错误类型，所以要显式说明
-fn statements(self: *Self) std.fmt.BufPrintError!void {
+// inferred error sets are incompatible with recursion, use an explicit error set instead
+fn statements(self: *Self) BufPrintError!void {
     while (true) {
         const token = self.tokens[self.index];
         if (token.type != .KEYWORD) break;
         switch (token.keyword.?) {
-            .LET => self.compile("letStatement"),
+            .LET => try self.compile("letStatement"),
             .IF => try self.compile("ifStatement"),
             .WHILE => try self.compile("whileStatement"),
             .DO => try self.compile("doStatement"),
-            .RETURN => self.compile("returnStatement"),
+            .RETURN => try self.compile("returnStatement"),
             else => break,
         }
     }
 }
 
-fn letStatement(self: *Self) void {
+fn letStatement(self: *Self) BufPrintError!void {
     self.print("{}", .{self.next()}); // LET
     self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
     var name = self.next().?.lexeme;
@@ -248,72 +252,95 @@ fn letStatement(self: *Self) void {
     // ('[' expression ']')?
     if (self.eql('[')) {
         self.print("{}", .{self.next()}); // [
-        self.compile("expression");
+        try self.compile("expression");
         self.print("{}", .{self.next()}); // ]
     }
 
     self.print("{}", .{self.next()}); // =
-    self.compile("expression");
+    try self.compile("expression");
+    self.vm.pop(@intToEnum(Segment, @enumToInt(self.table.kindOf(name))), self.table.indexOf(name));
     self.print("{}", .{self.next()}); // ;
 }
 
-fn ifStatement(self: *Self) std.fmt.BufPrintError!void {
+fn ifStatement(self: *Self) BufPrintError!void {
+    const counter = self.if_counter;
+    self.if_counter += 1;
+    var L1: []const u8 = undefined;
+    var L2: []const u8 = undefined;
+
     self.print("{}", .{self.next()}); // IF
     self.print("{}", .{self.next()}); // (
-    self.compile("expression");
+    try self.compile("expression");
     self.print("{}", .{self.next()}); // }
+
+    self.vm.arithmetic(.not);
+    L1 = try bufPrint(&self.labelNameBuf, "IF_FALSE{d}", .{counter});
+    self.vm.@"if-goto"(L1);
 
     self.print("{}", .{self.next()}); // {
     try self.compile("statements");
     self.print("{}", .{self.next()}); // }
 
     if (self.eql(&[_]KeyWord{.ELSE})) {
+        L2 = try bufPrint(&self.labelNameBuf, "IF_END{d}", .{counter});
+        self.vm.goto(L2);
+    }
+
+    L1 = try bufPrint(&self.labelNameBuf, "IF_FALSE{d}", .{counter});
+    self.vm.label(L1);
+
+    if (self.eql(&[_]KeyWord{.ELSE})) {
         self.print("{}", .{self.next()}); // ELSE
         self.print("{}", .{self.next()}); // {
         try self.compile("statements");
         self.print("{}", .{self.next()}); // }
+
+        L2 = try bufPrint(&self.labelNameBuf, "IF_END{d}", .{counter});
+        self.vm.label(L2);
     }
 }
 
-fn whileStatement(self: *Self) std.fmt.BufPrintError!void {
+fn whileStatement(self: *Self) BufPrintError!void {
+    const counter = self.while_counter;
+    self.while_counter += 1;
+    var L1: []const u8 = undefined;
+    var L2: []const u8 = undefined;
+
     self.print("{}", .{self.next()}); // WHILE
+    L1 = try bufPrint(&self.labelNameBuf, "WHILE_EXP{d}", .{counter});
+    self.vm.label(L1);
+
     self.print("{}", .{self.next()}); // (
-    self.compile("expression");
+    try self.compile("expression");
     self.print("{}", .{self.next()}); // )
+
+    self.vm.arithmetic(.not);
+    L2 = try bufPrint(&self.labelNameBuf, "WHILE_END{d}", .{counter});
+    self.vm.@"if-goto"(L2);
 
     self.print("{}", .{self.next()}); // {
     try self.compile("statements");
     self.print("{}", .{self.next()}); // }
+    L1 = try bufPrint(&self.labelNameBuf, "WHILE_EXP{d}", .{counter});
+    self.vm.goto(L1);
+    L2 = try bufPrint(&self.labelNameBuf, "WHILE_END{d}", .{counter});
+    self.vm.label(L2);
 }
 
-fn doStatement(self: *Self) std.fmt.BufPrintError!void {
+fn doStatement(self: *Self) BufPrintError!void {
     self.print("{}", .{self.next()}); // DO
 
     // subroutineCall
-    self.funcName = "";
-    var nextToken = self.tokens[self.index + 1];
-
-    if (std.mem.eql(u8, nextToken.lexeme, ".")) {
-        self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
-        self.funcName = try std.fmt.bufPrint(&self.funcNameBuf, "{s}.", .{self.next().?.lexeme});
-        self.print("{}", .{self.next()}); // .
-    }
-
-    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
-    self.funcName = try std.fmt.bufPrint(&self.funcNameBuf, "{s}{s}", .{ self.funcName, self.next().?.lexeme });
-    self.print("{}", .{self.next()}); // (
-    const nArgs = self.compile("expressionList");
-    self.print("{}", .{self.next()}); // )
+    try self.compile("subroutineCall");
 
     self.print("{}", .{self.next()}); // ;
-    self.vm.call(self.funcName, nArgs);
     self.vm.pop(.temp, 0);
 }
 
-fn returnStatement(self: *Self) void {
+fn returnStatement(self: *Self) BufPrintError!void {
     self.print("{}", .{self.next()}); // RETURN
     if (!self.eql(';')) {
-        self.compile("expression");
+        try self.compile("expression");
     } else {
         self.vm.push(.constant, 0);
     }
@@ -322,11 +349,30 @@ fn returnStatement(self: *Self) void {
     self.vm.@"return"();
 }
 
-fn expression(self: *Self) void {
-    self.compile("term");
+fn subroutineCall(self: *Self) BufPrintError!void {
+    var nextToken = self.tokens[self.index + 1];
+    self.funcName = "";
+
+    if (std.mem.eql(u8, nextToken.lexeme, ".")) {
+        self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
+        self.funcName = try bufPrint(&self.funcNameBuf, "{s}.", .{self.next().?.lexeme});
+        self.print("{}", .{self.next()}); // .
+    }
+
+    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
+    self.funcName = try bufPrint(&self.funcNameBuf, "{s}{s}", .{ self.funcName, self.next().?.lexeme });
+    self.print("{}", .{self.next()}); // (
+    const nArgs = try self.compile("expressionList");
+    self.print("{}", .{self.next()}); // )
+    self.vm.call(self.funcName, nArgs);
+}
+
+fn expression(self: *Self) BufPrintError!void {
+    try self.compile("term");
     while (self.eql("+-*/&|<>=")) {
+        self.print("{}", .{self.tokens[self.index]});
         var op = self.next().?.lexeme[0];
-        self.compile("term");
+        try self.compile("term");
 
         switch (op) {
             '+' => self.vm.arithmetic(.add),
@@ -343,7 +389,7 @@ fn expression(self: *Self) void {
     }
 }
 
-fn term(self: *Self) void {
+fn term(self: *Self) BufPrintError!void {
     var token = self.tokens[self.index];
     switch (token.type) {
         .INT_CONST => {
@@ -354,7 +400,14 @@ fn term(self: *Self) void {
         .KEYWORD => {
             switch (token.keyword.?) {
                 // keywordConstant
-                .TRUE, .FALSE, .NULL, .THIS => self.print("{}", .{self.next()}),
+                .THIS => self.print("{}", .{self.next()}),
+                .TRUE, .FALSE, .NULL => |key| {
+                    self.print("{}", .{self.next()});
+                    self.vm.push(.constant, 0);
+                    if (key == .TRUE) {
+                        self.vm.arithmetic(.not);
+                    }
+                },
                 else => unreachable,
             }
         },
@@ -363,13 +416,18 @@ fn term(self: *Self) void {
                 // '(' expression ')'
                 '(' => {
                     self.print("{}", .{self.next()}); // (
-                    self.compile("expression");
+                    try self.compile("expression");
                     self.print("{}", .{self.next()}); // )
                 },
                 // unaryOP term
                 '-', '~' => {
-                    self.print("{}", .{self.next()});
-                    self.compile("term");
+                    var op = self.next().?.lexeme[0];
+                    try self.compile("term");
+                    if (op == '-') {
+                        self.vm.arithmetic(.neg);
+                    } else {
+                        self.vm.arithmetic(.not);
+                    }
                 },
                 else => unreachable,
             }
@@ -384,38 +442,32 @@ fn term(self: *Self) void {
                     self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name), self.table.indexOf(name) });
 
                     self.print("{}", .{self.next()}); // [
-                    self.compile("expression");
+                    try self.compile("expression");
                     self.print("{}", .{self.next()}); // ]
                 },
                 // subroutineCall
                 '.', '(' => {
-                    if (std.mem.eql(u8, nextToken.lexeme, ".")) {
-                        self.print("{}", .{self.next()}); // className | varName
-                        self.print("{}", .{self.next()}); // .
-                    }
-                    self.print("{}", .{self.next()}); // IDENTIFIER
-                    self.print("{}", .{self.next()}); // (
-                    _ = self.compile("expressionList");
-                    self.print("{}", .{self.next()}); // )
+                    try self.compile("subroutineCall");
                 },
                 // varName
                 else => {
                     self.print("{}", .{self.tokens[self.index]}); // varName
                     var name = self.next().?.lexeme;
                     self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name), self.table.indexOf(name) });
+                    self.vm.push(@intToEnum(Segment, @enumToInt(self.table.kindOf(name))), self.table.indexOf(name));
                 },
             }
         },
     }
 }
 
-fn expressionList(self: *Self) usize {
+fn expressionList(self: *Self) BufPrintError!usize {
     var number: usize = if (self.eql(')')) 0 else blk: {
-        self.compile("expression");
+        try self.compile("expression");
         var i: usize = 1;
         while (self.eql(',')) : (i += 1) {
             self.print("{}", .{self.next()});
-            self.compile("expression");
+            try self.compile("expression");
         }
         break :blk i;
     };
