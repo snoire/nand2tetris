@@ -204,19 +204,31 @@ fn statements(self: *Self) BufPrintError!void {
 
 fn letStatement(self: *Self) BufPrintError!void {
     _ = self.next(); // LET
-    var name = self.next().?.lexeme;
+    const name = self.next().?.lexeme;
 
     // ('[' expression ']')?
+    var is_array: bool = false;
     if (self.eql('[')) {
+        is_array = true;
+        self.vm.push(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
         _ = self.next(); // [
         try self.expression();
         _ = self.next(); // ]
+        self.vm.arithmetic(.add);
     }
 
     _ = self.next(); // =
     try self.expression();
-    self.vm.pop(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
     _ = self.next(); // ;
+
+    if (is_array) {
+        self.vm.pop(.temp, 0);
+        self.vm.pop(.pointer, 1);
+        self.vm.push(.temp, 0);
+        self.vm.pop(.that, 0);
+    } else {
+        self.vm.pop(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
+    }
 }
 
 fn ifStatement(self: *Self) BufPrintError!void {
@@ -308,7 +320,7 @@ fn returnStatement(self: *Self) BufPrintError!void {
 
 fn subroutineCall(self: *Self) BufPrintError!void {
     var nArgs: usize = 0;
-    var nextToken = self.tokens[self.index + 1];
+    const nextToken = self.tokens[self.index + 1];
 
     const className = if (std.mem.eql(u8, nextToken.lexeme, ".")) blk1: {
         const name = self.next().?.lexeme;
@@ -357,7 +369,16 @@ fn term(self: *Self) BufPrintError!void {
     var token = self.tokens[self.index];
     switch (token.type) {
         .INT_CONST => self.vm.push(.constant, self.next().?.number.?),
-        .STRING_CONST => _ = self.next(),
+        .STRING_CONST => {
+            const str = self.next().?.lexeme;
+            self.vm.push(.constant, str.len);
+            self.vm.call("String.new", 1);
+
+            for (str) |char| {
+                self.vm.push(.constant, char);
+                self.vm.call("String.appendChar", 2);
+            }
+        },
         .KEYWORD => {
             switch (token.keyword.?) {
                 // keywordConstant
@@ -397,16 +418,20 @@ fn term(self: *Self) BufPrintError!void {
             }
         },
         .IDENTIFIER => {
-            var nextToken = self.tokens[self.index + 1];
+            const nextToken = self.tokens[self.index + 1];
             switch (nextToken.lexeme[0]) {
                 // varName '[' expression ']'
                 '[' => {
-                    //var name = self.next().?.lexeme;
-                    _ = self.next(); // varName
+                    const name = self.next().?.lexeme;
+                    self.vm.push(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
 
                     _ = self.next(); // [
                     try self.expression();
                     _ = self.next(); // ]
+
+                    self.vm.arithmetic(.add);
+                    self.vm.pop(.pointer, 1);
+                    self.vm.push(.that, 0);
                 },
                 // subroutineCall
                 '.', '(' => {
@@ -414,7 +439,7 @@ fn term(self: *Self) BufPrintError!void {
                 },
                 // varName
                 else => {
-                    var name = self.next().?.lexeme;
+                    const name = self.next().?.lexeme;
                     self.vm.push(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
                 },
             }
