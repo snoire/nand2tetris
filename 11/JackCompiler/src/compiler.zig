@@ -1,6 +1,8 @@
 const std = @import("std");
 const bufPrint = std.fmt.bufPrint;
 const BufPrintError = std.fmt.BufPrintError;
+const Self = @This();
+
 const Token = @import("tokenizer.zig").Token;
 const TokenType = Token.TokenType;
 const KeyWord = Token.KeyWord;
@@ -9,16 +11,10 @@ const SymbolTable = @import("symboltable.zig");
 const VarKind = SymbolTable.Kind;
 const VMWriter = @import("vmwriter.zig");
 const Segment = VMWriter.Segment;
-const Self = @This();
 
 index: usize = 0,
-tokens: []Token,
-
-writer: std.fs.File.Writer,
-whitespace: std.json.StringifyOptions.Whitespace = .{
-    .indent_level = 1,
-    .indent = .{ .Space = 2 },
-}, // TODO
+if_counter: usize = 0,
+while_counter: usize = 0,
 
 className: []const u8 = undefined,
 funcNameBuf: [128]u8 = undefined,
@@ -26,34 +22,20 @@ funcName: []const u8 = undefined,
 labelNameBuf: [64]u8 = undefined,
 subroutineType: KeyWord = undefined,
 
-if_counter: usize = 0,
-while_counter: usize = 0,
-
+tokens: []Token,
 table: SymbolTable,
 vm: VMWriter,
 
 pub fn init(allocator: std.mem.Allocator, tokens: []Token, writer: std.fs.File.Writer) Self {
     return Self{
         .tokens = tokens,
-        .writer = writer,
         .table = SymbolTable.init(allocator),
-        .vm = VMWriter{ .writer = std.io.getStdOut().writer() },
+        .vm = VMWriter{ .writer = writer },
     };
 }
 
 pub fn deinit(self: *Self) void {
     self.table.deinit();
-}
-
-// print one line with indent
-fn print(self: *Self, comptime format: []const u8, args: anytype) void {
-    self.writer.writeAll("\r\n") catch unreachable;
-    self.whitespace.outputIndent(self.writer) catch unreachable;
-    std.fmt.format(self.writer, format, args) catch unreachable;
-}
-
-fn writeAll(self: *Self, bytes: []const u8) void {
-    self.writer.writeAll(bytes) catch unreachable;
 }
 
 fn eql(self: *Self, expect: anytype) bool {
@@ -97,99 +79,65 @@ fn next(self: *Self) ?Token {
     return null;
 }
 
-// wrapper of "func"
-fn compile(self: *Self, comptime func: []const u8) if (@typeInfo(@TypeOf(@field(Self, func))).Fn.return_type) |return_type| return_type else void {
-    self.print("<{s}>", .{func});
-    self.whitespace.indent_level += 1;
-
-    // call func
-    const return_type = if (@typeInfo(@TypeOf(@field(Self, func))).Fn.return_type) |return_type| return_type else void;
-    const result: return_type = @field(Self, func)(self);
-
-    self.whitespace.indent_level -= 1;
-    self.print("</{s}>", .{func});
-
-    return result;
-}
-
 // compiles a complete class
 pub fn compileClass(self: *Self) !void {
-    self.writeAll("<class>");
-
-    self.print("{}", .{self.next()}); // CLASS
-    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
+    _ = self.next(); // CLASS
     self.className = self.next().?.lexeme;
-    self.print("{}", .{self.next()}); // {
+
+    _ = self.next(); // {
 
     while (self.eql(&[_]KeyWord{ .STATIC, .FIELD })) {
-        try self.compile("classVarDec");
+        try self.classVarDec();
     }
 
     while (self.eql(&[_]KeyWord{ .CONSTRUCTOR, .FUNCTION, .METHOD })) {
-        try self.compile("subroutineDec");
+        try self.subroutineDec();
     }
 
-    self.print("{}", .{self.next()}); // }
-    self.writeAll("\r\n</class>\r\n");
+    _ = self.next(); // }
 }
 
 fn classVarDec(self: *Self) !void {
-    self.print("{}", .{self.tokens[self.index]}); // "static", "field"
     const kind: VarKind = if (self.next().?.keyword.? == .STATIC) .static else .field;
-
-    self.print("{}", .{self.tokens[self.index]}); // type
     const varType = self.next().?.lexeme;
-
-    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
     var name = self.next().?.lexeme;
-
     try self.table.define(name, varType, kind);
 
     while (self.eql(',')) {
-        self.print("{}", .{self.next()}); // ,
-        self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
+        _ = self.next(); // ,
         name = self.next().?.lexeme;
         try self.table.define(name, varType, kind);
     }
 
-    self.print("{}", .{self.next()}); // ;
+    _ = self.next(); // ;
 }
 
 fn subroutineDec(self: *Self) !void {
     self.table.reset();
 
-    self.print("{}", .{self.tokens[self.index]}); // "constructor", "function", "method"
-    self.subroutineType = self.next().?.keyword.?;
+    self.subroutineType = self.next().?.keyword.?; // "constructor", "function", "method"
     if (self.subroutineType == .METHOD) {
         try self.table.define("this", self.className, .argument);
     }
-    self.print("{}", .{self.next()}); // 'void' | type
-    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
+    _ = self.next(); // 'void' | type
     self.funcName = try bufPrint(&self.funcNameBuf, "{s}.{s}", .{ self.className, self.next().?.lexeme });
 
-    self.print("{}", .{self.next()}); // (
-    try self.compile("parameterList");
-    self.print("{}", .{self.next()}); // )
+    _ = self.next(); // (
+    try self.parameterList();
+    _ = self.next(); // )
 
-    try self.compile("subroutineBody");
+    try self.subroutineBody();
 }
 
 fn parameterList(self: *Self) !void {
     if (!self.eql(')')) {
-        self.print("{}", .{self.tokens[self.index]}); // type
         var varType = self.next().?.lexeme;
-
-        self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
         var name = self.next().?.lexeme;
-
         try self.table.define(name, varType, .argument);
 
         while (self.eql(',')) {
-            self.print("{}", .{self.next()}); // ,
-            self.print("{}", .{self.tokens[self.index]}); // type
+            _ = self.next(); // ,
             varType = self.next().?.lexeme;
-
-            self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
             name = self.next().?.lexeme;
             try self.table.define(name, varType, .argument);
         }
@@ -197,13 +145,14 @@ fn parameterList(self: *Self) !void {
 }
 
 fn subroutineBody(self: *Self) !void {
-    self.print("{}", .{self.next()}); // {
+    _ = self.next(); // {
 
     while (self.eql(&[_]KeyWord{.VAR})) {
-        try self.compile("varDec");
+        try self.varDec();
     }
 
     self.vm.function(self.funcName, self.table.varCount(.local));
+
     switch (self.subroutineType) {
         .CONSTRUCTOR => {
             self.vm.push(.constant, self.table.varCount(.field));
@@ -217,28 +166,24 @@ fn subroutineBody(self: *Self) !void {
         .FUNCTION => {},
         else => unreachable,
     }
-    try self.compile("statements");
 
-    self.print("{}", .{self.next()}); // }
+    try self.statements();
+    _ = self.next(); // }
 }
 
 fn varDec(self: *Self) !void {
-    self.print("{}", .{self.next()}); // var
-    self.print("{}", .{self.tokens[self.index]}); // type
+    _ = self.next(); // var
     const varType = self.next().?.lexeme;
-
-    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
     var name = self.next().?.lexeme;
     try self.table.define(name, varType, .local);
 
     while (self.eql(',')) {
-        self.print("{}", .{self.next()}); // ,
-        self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
+        _ = self.next(); // ,
         name = self.next().?.lexeme;
         try self.table.define(name, varType, .local);
     }
 
-    self.print("{}", .{self.next()}); // ;
+    _ = self.next(); // ;
 }
 
 // inferred error sets are incompatible with recursion, use an explicit error set instead
@@ -247,33 +192,31 @@ fn statements(self: *Self) BufPrintError!void {
         const token = self.tokens[self.index];
         if (token.type != .KEYWORD) break;
         switch (token.keyword.?) {
-            .LET => try self.compile("letStatement"),
-            .IF => try self.compile("ifStatement"),
-            .WHILE => try self.compile("whileStatement"),
-            .DO => try self.compile("doStatement"),
-            .RETURN => try self.compile("returnStatement"),
+            .LET => try self.letStatement(),
+            .IF => try self.ifStatement(),
+            .WHILE => try self.whileStatement(),
+            .DO => try self.doStatement(),
+            .RETURN => try self.returnStatement(),
             else => break,
         }
     }
 }
 
 fn letStatement(self: *Self) BufPrintError!void {
-    self.print("{}", .{self.next()}); // LET
-    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
+    _ = self.next(); // LET
     var name = self.next().?.lexeme;
-    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name).?, self.table.indexOf(name) });
 
     // ('[' expression ']')?
     if (self.eql('[')) {
-        self.print("{}", .{self.next()}); // [
-        try self.compile("expression");
-        self.print("{}", .{self.next()}); // ]
+        _ = self.next(); // [
+        try self.expression();
+        _ = self.next(); // ]
     }
 
-    self.print("{}", .{self.next()}); // =
-    try self.compile("expression");
+    _ = self.next(); // =
+    try self.expression();
     self.vm.pop(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
-    self.print("{}", .{self.next()}); // ;
+    _ = self.next(); // ;
 }
 
 fn ifStatement(self: *Self) BufPrintError!void {
@@ -282,18 +225,18 @@ fn ifStatement(self: *Self) BufPrintError!void {
     var L1: []const u8 = undefined;
     var L2: []const u8 = undefined;
 
-    self.print("{}", .{self.next()}); // IF
-    self.print("{}", .{self.next()}); // (
-    try self.compile("expression");
-    self.print("{}", .{self.next()}); // }
+    _ = self.next(); // IF
+    _ = self.next(); // (
+    try self.expression();
+    _ = self.next(); // }
 
     self.vm.arithmetic(.not);
     L1 = try bufPrint(&self.labelNameBuf, "IF_FALSE{d}", .{counter});
     self.vm.@"if-goto"(L1);
 
-    self.print("{}", .{self.next()}); // {
-    try self.compile("statements");
-    self.print("{}", .{self.next()}); // }
+    _ = self.next(); // {
+    try self.statements();
+    _ = self.next(); // }
 
     if (self.eql(&[_]KeyWord{.ELSE})) {
         L2 = try bufPrint(&self.labelNameBuf, "IF_END{d}", .{counter});
@@ -304,10 +247,10 @@ fn ifStatement(self: *Self) BufPrintError!void {
     self.vm.label(L1);
 
     if (self.eql(&[_]KeyWord{.ELSE})) {
-        self.print("{}", .{self.next()}); // ELSE
-        self.print("{}", .{self.next()}); // {
-        try self.compile("statements");
-        self.print("{}", .{self.next()}); // }
+        _ = self.next(); // ELSE
+        _ = self.next(); // {
+        try self.statements();
+        _ = self.next(); // }
 
         L2 = try bufPrint(&self.labelNameBuf, "IF_END{d}", .{counter});
         self.vm.label(L2);
@@ -320,21 +263,21 @@ fn whileStatement(self: *Self) BufPrintError!void {
     var L1: []const u8 = undefined;
     var L2: []const u8 = undefined;
 
-    self.print("{}", .{self.next()}); // WHILE
+    _ = self.next(); // WHILE
     L1 = try bufPrint(&self.labelNameBuf, "WHILE_EXP{d}", .{counter});
     self.vm.label(L1);
 
-    self.print("{}", .{self.next()}); // (
-    try self.compile("expression");
-    self.print("{}", .{self.next()}); // )
+    _ = self.next(); // (
+    try self.expression();
+    _ = self.next(); // )
 
     self.vm.arithmetic(.not);
     L2 = try bufPrint(&self.labelNameBuf, "WHILE_END{d}", .{counter});
     self.vm.@"if-goto"(L2);
 
-    self.print("{}", .{self.next()}); // {
-    try self.compile("statements");
-    self.print("{}", .{self.next()}); // }
+    _ = self.next(); // {
+    try self.statements();
+    _ = self.next(); // }
     L1 = try bufPrint(&self.labelNameBuf, "WHILE_EXP{d}", .{counter});
     self.vm.goto(L1);
     L2 = try bufPrint(&self.labelNameBuf, "WHILE_END{d}", .{counter});
@@ -342,24 +285,24 @@ fn whileStatement(self: *Self) BufPrintError!void {
 }
 
 fn doStatement(self: *Self) BufPrintError!void {
-    self.print("{}", .{self.next()}); // DO
+    _ = self.next(); // DO
 
-    // subroutineCall
-    try self.compile("subroutineCall");
+    try self.subroutineCall();
 
-    self.print("{}", .{self.next()}); // ;
+    _ = self.next(); // ;
     self.vm.pop(.temp, 0);
 }
 
 fn returnStatement(self: *Self) BufPrintError!void {
-    self.print("{}", .{self.next()}); // RETURN
+    _ = self.next(); // RETURN
+
     if (!self.eql(';')) {
-        try self.compile("expression");
+        try self.expression();
     } else {
         self.vm.push(.constant, 0);
     }
 
-    self.print("{}", .{self.next()}); // ;
+    _ = self.next(); // ;
     self.vm.@"return"();
 }
 
@@ -368,14 +311,13 @@ fn subroutineCall(self: *Self) BufPrintError!void {
     var nextToken = self.tokens[self.index + 1];
 
     const className = if (std.mem.eql(u8, nextToken.lexeme, ".")) blk1: {
-        self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
         const name = self.next().?.lexeme;
         const classname = if (self.table.kindOf(name)) |var_kind| blk2: {
             self.vm.push(@intToEnum(Segment, @enumToInt(var_kind)), self.table.indexOf(name));
             nArgs += 1;
             break :blk2 self.table.typeOf(name);
         } else name;
-        self.print("{}", .{self.next()}); // .
+        _ = self.next(); // .
         break :blk1 classname;
     } else blk: {
         self.vm.push(.pointer, 0);
@@ -383,20 +325,18 @@ fn subroutineCall(self: *Self) BufPrintError!void {
         break :blk self.className;
     };
 
-    self.print("{}", .{self.tokens[self.index]}); // IDENTIFIER
     self.funcName = try bufPrint(&self.funcNameBuf, "{s}.{s}", .{ className, self.next().?.lexeme });
-    self.print("{}", .{self.next()}); // (
-    nArgs += try self.compile("expressionList");
-    self.print("{}", .{self.next()}); // )
+    _ = self.next(); // (
+    nArgs += try self.expressionList();
+    _ = self.next(); // )
     self.vm.call(self.funcName, nArgs);
 }
 
 fn expression(self: *Self) BufPrintError!void {
-    try self.compile("term");
+    try self.term();
     while (self.eql("+-*/&|<>=")) {
-        self.print("{}", .{self.tokens[self.index]});
         var op = self.next().?.lexeme[0];
-        try self.compile("term");
+        try self.term();
 
         switch (op) {
             '+' => self.vm.arithmetic(.add),
@@ -416,20 +356,17 @@ fn expression(self: *Self) BufPrintError!void {
 fn term(self: *Self) BufPrintError!void {
     var token = self.tokens[self.index];
     switch (token.type) {
-        .INT_CONST => {
-            self.print("{}", .{self.tokens[self.index]});
-            self.vm.push(.constant, self.next().?.number.?);
-        },
-        .STRING_CONST => self.print("{}", .{self.next()}),
+        .INT_CONST => self.vm.push(.constant, self.next().?.number.?),
+        .STRING_CONST => _ = self.next(),
         .KEYWORD => {
             switch (token.keyword.?) {
                 // keywordConstant
                 .THIS => {
-                    self.print("{}", .{self.next()});
+                    _ = self.next();
                     self.vm.push(.pointer, 0);
                 },
                 .TRUE, .FALSE, .NULL => |key| {
-                    self.print("{}", .{self.next()});
+                    _ = self.next();
                     self.vm.push(.constant, 0);
                     if (key == .TRUE) {
                         self.vm.arithmetic(.not);
@@ -442,14 +379,14 @@ fn term(self: *Self) BufPrintError!void {
             switch (token.lexeme[0]) {
                 // '(' expression ')'
                 '(' => {
-                    self.print("{}", .{self.next()}); // (
-                    try self.compile("expression");
-                    self.print("{}", .{self.next()}); // )
+                    _ = self.next(); // (
+                    try self.expression();
+                    _ = self.next(); // )
                 },
                 // unaryOP term
                 '-', '~' => {
                     var op = self.next().?.lexeme[0];
-                    try self.compile("term");
+                    try self.term();
                     if (op == '-') {
                         self.vm.arithmetic(.neg);
                     } else {
@@ -464,23 +401,20 @@ fn term(self: *Self) BufPrintError!void {
             switch (nextToken.lexeme[0]) {
                 // varName '[' expression ']'
                 '[' => {
-                    self.print("{}", .{self.tokens[self.index]}); // varName
-                    var name = self.next().?.lexeme;
-                    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name).?, self.table.indexOf(name) });
+                    //var name = self.next().?.lexeme;
+                    _ = self.next(); // varName
 
-                    self.print("{}", .{self.next()}); // [
-                    try self.compile("expression");
-                    self.print("{}", .{self.next()}); // ]
+                    _ = self.next(); // [
+                    try self.expression();
+                    _ = self.next(); // ]
                 },
                 // subroutineCall
                 '.', '(' => {
-                    try self.compile("subroutineCall");
+                    try self.subroutineCall();
                 },
                 // varName
                 else => {
-                    self.print("{}", .{self.tokens[self.index]}); // varName
                     var name = self.next().?.lexeme;
-                    self.print("<!-- {s}: {any} {d} -->", .{ name, self.table.kindOf(name).?, self.table.indexOf(name) });
                     self.vm.push(@intToEnum(Segment, @enumToInt(self.table.kindOf(name).?)), self.table.indexOf(name));
                 },
             }
@@ -490,11 +424,11 @@ fn term(self: *Self) BufPrintError!void {
 
 fn expressionList(self: *Self) BufPrintError!usize {
     var number: usize = if (self.eql(')')) 0 else blk: {
-        try self.compile("expression");
+        try self.expression();
         var i: usize = 1;
         while (self.eql(',')) : (i += 1) {
-            self.print("{}", .{self.next()});
-            try self.compile("expression");
+            _ = self.next();
+            try self.expression();
         }
         break :blk i;
     };
