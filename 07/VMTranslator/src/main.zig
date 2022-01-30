@@ -15,7 +15,7 @@ pub fn main() anyerror!void {
 
     // open vm file
     const cwd = std.fs.cwd();
-    const vmfile = try cwd.openFile(args[1], .{ .read = true });
+    const vmfile = try cwd.openFile(args[1], .{});
     defer vmfile.close();
 
     // truncate asm file for writing

@@ -17,7 +17,7 @@ pub fn main() anyerror!void {
 
     // open asm file
     const cwd = std.fs.cwd();
-    const asmfile = try cwd.openFile(args[1], .{ .read = true });
+    const asmfile = try cwd.openFile(args[1], .{});
     defer asmfile.close();
 
     // truncate hack file for writing

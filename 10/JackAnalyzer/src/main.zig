@@ -16,7 +16,7 @@ pub fn main() anyerror!void {
 
     const filename = args[1];
     const cwd = std.fs.cwd();
-    const file = try cwd.openFile(filename, .{ .read = true });
+    const file = try cwd.openFile(filename, .{});
     defer file.close();
 
     const stat = try file.stat();
@@ -46,7 +46,7 @@ pub fn main() anyerror!void {
 }
 
 fn handleFile(outputDir: std.fs.Dir, input: []const u8) !void {
-    const jackfile = try outputDir.openFile(input, .{ .read = true });
+    const jackfile = try outputDir.openFile(input, .{});
     defer jackfile.close();
     //const reader = jackfile.reader();
     const bytes = try jackfile.readToEndAlloc(allocator, MAX_FILE_SIZE);

@@ -15,7 +15,7 @@ pub fn main() anyerror!void {
 
     const filename = args[1];
     const cwd = std.fs.cwd();
-    const file = try cwd.openFile(filename, .{ .read = true });
+    const file = try cwd.openFile(filename, .{});
     defer file.close();
 
     const stat = try file.stat();
@@ -52,7 +52,7 @@ pub fn main() anyerror!void {
     var iter = outputDir.iterate();
     while (try iter.next()) |entry| {
         if (entry.kind == .File and std.mem.endsWith(u8, entry.name, ".vm")) {
-            const vmfile = try outputDir.openFile(entry.name, .{ .read = true });
+            const vmfile = try outputDir.openFile(entry.name, .{});
             defer vmfile.close();
 
             const reader = vmfile.reader();
