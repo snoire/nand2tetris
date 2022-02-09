@@ -337,11 +337,12 @@ fn subroutineCall(self: *Self) BufPrintError!void {
         break :blk self.className;
     };
 
-    self.funcName = try bufPrint(&self.funcNameBuf, "{s}.{s}", .{ className, self.next().?.lexeme });
+    var funcNameBuf: [128]u8 = undefined;
+    const funcName = try bufPrint(&funcNameBuf, "{s}.{s}", .{ className, self.next().?.lexeme });
     _ = self.next(); // (
     nArgs += try self.expressionList();
     _ = self.next(); // )
-    self.vm.call(self.funcName, nArgs);
+    self.vm.call(funcName, nArgs);
 }
 
 fn expression(self: *Self) BufPrintError!void {
