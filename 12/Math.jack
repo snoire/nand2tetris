@@ -67,10 +67,7 @@ class Math {
         let x = Math.abs(x);
         let y = Math.abs(y);
 
-        if (y > x) {
-            return 0;
-        }
-        if (y < 0) {
+        if ((y > x) | (y < 0)) {
             return 0;
         }
 
@@ -97,10 +94,8 @@ class Math {
         while (i > -1) {
             let t = y + twoToThe[i];
             let s = t * t;
-            if (~(s > x)) {
-                if (s > 0) {
-                    let y = t;
-                }
+            if (~(s > x) & (s > 0)) {
+                let y = t;
             }
             let i = i - 1;
         }

@@ -106,27 +106,11 @@ class SnakeGame {
         while (~exit) {
             let key = Keyboard.keyPressed();
 
-            if (key = 81)  { let exit = true; }             // q key
-            if (key = 132) {                                // right arrow
-                if (~(direction = -1)) {
-                    let d = 1;
-                }
-            }
-            if (key = 130) {                                // left arrow
-                if (~(direction = 1)) {
-                    let d = -1;
-                }
-            }
-            if (key = 133) {                                // down arrow
-                if (~(direction = 2)) {
-                    let d = -2;
-                }
-            }
-            if (key = 131) {                                // up arrow
-                if (~(direction = -2)) {
-                    let d = 2;
-                }
-            }
+            if (key = 81) { let exit = true; }                  // q key
+            if (key = 132 & ~(direction = -1)) { let d = 1; }   // right arrow
+            if (key = 130 & ~(direction = 1)) { let d = -1; }   // left arrow
+            if (key = 133 & ~(direction = 2)) { let d = -2; }   // down arrow
+            if (key = 131 & ~(direction = -2)) { let d = 2; }   // up arrow
 
             if (timer > 60) {
                 let direction = d;
