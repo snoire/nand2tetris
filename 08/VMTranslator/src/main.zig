@@ -26,7 +26,7 @@ pub fn main() anyerror!void {
     if (stat.kind == .File) {
         const noextension = filename[0 .. filename.len - 2]; // file name without extension "vm"
         asmfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ noextension, "asm" });
-        outputDir = try cwd.openDir(std.fs.path.dirname(filename).?, .{ .iterate = true });
+        outputDir = try cwd.openDir(std.fs.path.dirname(filename) orelse "./", .{ .iterate = true });
     } else if (stat.kind == .Directory) {
         asmfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ filename, "/", std.fs.path.basename(filename), ".asm" });
         outputDir = try cwd.openDir(filename, .{ .iterate = true });
