@@ -9,26 +9,90 @@
  * consists of 32,768 words, each holding a 16-bit binary number.
  */
 class Memory {
+    static Array ram, freeList;
+    //static Array heap;
+    //static int freeList;
 
     /** Initializes the class. */
     function void init() {
+        let ram = 0;
+        let freeList = 2048; // heapBase
+
+        let freeList[0] = 0; // next
+        let freeList[1] = 14334; // length
+        return;
     }
 
     /** Returns the RAM value at the given address. */
     function int peek(int address) {
+        return ram[address];
     }
 
     /** Sets the RAM value at the given address to the given value. */
     function void poke(int address, int value) {
+        let ram[address] = value;
+        return;
     }
 
     /** Finds an available RAM block of the given size and returns
      *  a reference to its base address. */
     function int alloc(int size) {
+        var Array seg, block;
+
+        let size = size + 2;
+        let seg = freeList;
+
+        while (~(seg = 0) & (seg[1] < size)) {
+            let seg = seg[0];
+        }
+
+        if (seg = 0) {
+            do Sys.error(1);
+        }
+
+        let seg[1] = seg[1] - size;     // carve a block from this segment
+        let block = seg + 2 + seg[1];
+
+        let block[0] = seg[0];          // insert the block between original segments
+        let seg[0] = block;
+
+        let block[1] = -seg;            // record the previous segment address in block[1] instead of the block's size
+        if (block[0] > 0) {
+            let seg = block[0];
+            let seg[1] = -block;
+        }
+
+        return block + 2;               // return the base address of the block's data part
     }
 
     /** De-allocates the given object (cast as an array) by making
      *  it available for future allocations. */
     function void deAlloc(Array o) {
+        var int size;
+        var Array block, prev, next;
+
+        let block = o - 2;
+        let next = block[0];
+        let prev = -block[1];
+
+        let size = next - block;
+        if (next = 0) {
+            let size = 16384 - block;
+            let next = 16384;
+        }
+
+        if (~(next = 16384) & (next[1] > -1)) { // merge the block to the next segment
+            let block[1] = size + next[1];
+            let block[0] = next[0];
+        } else {
+            let block[1] = size - 2;
+        }
+
+        if (prev[1] > -1) {                     // merge the block to the previous segment
+            let prev[1] = prev[1] + block[1] + 2;
+            let prev[0] = block[0];
+        }
+
+        return;
     }
 }
