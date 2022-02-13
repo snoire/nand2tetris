@@ -17,7 +17,7 @@ class Screen {
     /** Initializes the Screen. */
     function void init() {
         var int i;
-        let twoToThe = Array.new(16);
+        let twoToThe = Array.new(17);
         let twoToThe[0] = 1;
 
         let i = 1;
@@ -25,6 +25,7 @@ class Screen {
             let twoToThe[i] = twoToThe[i-1] + twoToThe[i-1];
             let i = i + 1;
         }
+        let twoToThe[16] = 0;
 
         let screen = 16384;
         let color = true;
@@ -75,14 +76,12 @@ class Screen {
         let dy = Math.abs(y2 - y1);
 
         if ((dx = 0) | (dy = 0)) {
-            let x = Math.min(x1, x2);
-            let y = Math.min(y1, y2);
-
-            while (~(a > dx) & ~(b > dy)) {
-                do Screen.drawPixel(x + a, y + b);
-                if (dy = 0) {
-                    let a = a + 1;
-                } else {
+            if (dy = 0) {
+                do Screen.drawHorizontal(Math.min(x1, x2), Math.max(x1, x2), y1);
+            } else {
+                let y = Math.min(y1, y2);
+                while (~(a > dx) & ~(b > dy)) {
+                    do Screen.drawPixel(x1 + a, y + b);
                     let b = b + 1;
                 }
             }
@@ -115,11 +114,48 @@ class Screen {
         return;
     }
 
+    /** Draws a horizontal line from pixel (x1,y) to pixel (x2,y), using the current color. */
+    function void drawHorizontal(int x1, int x2, int y) {
+        var int addr1, addr2, mask1, mask2;
+
+        let addr1 = (32 * y) + (x1 / 16);
+        let addr2 = (32 * y) + (x2 / 16);
+        let mask1 = ~(twoToThe[x1 & 15] - 1);
+        let mask2 = twoToThe[x2 & 15 + 1] - 1;
+
+        if (addr1 = addr2) {
+            let mask1 = mask1 & mask2;
+            if (color) {
+                let screen[addr1] = screen[addr1] | mask1;
+            } else {
+                let screen[addr1] = screen[addr1] & ~mask1;
+            }
+        } else {
+            if (color) {
+                let screen[addr1] = screen[addr1] | mask1;
+                let screen[addr2] = screen[addr2] | mask2;
+            } else {
+                let screen[addr1] = screen[addr1] & ~mask1;
+                let screen[addr2] = screen[addr2] & ~mask2;
+            }
+        }
+
+        if ((addr2 - addr1) > 1) {
+            let addr1 = addr1 + 1;
+            while (addr2 > addr1) {
+                let screen[addr1] = color;
+                let addr1 = addr1 + 1;
+            }
+        }
+
+        return;
+    }
+
     /** Draws a filled rectangle whose top left corner is (x1, y1)
      * and bottom right corner is (x2,y2), using the current color. */
     function void drawRectangle(int x1, int y1, int x2, int y2) {
         while (~(y1 > y2)) {
-            do Screen.drawLine(x1, y1, x2, y1);
+            do Screen.drawHorizontal(x1, x2, y1);
             let y1 = y1 + 1;
         }
 
@@ -135,7 +171,7 @@ class Screen {
         while (~(dy > r)) {
             let a = Math.sqrt(r2 - (dy * dy));
             let b = y + dy;
-            do Screen.drawLine(x - a, b, x + a, b);
+            do Screen.drawHorizontal(x - a, x + a, b);
             let dy = dy + 1;
         }
 
