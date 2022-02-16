@@ -7,9 +7,12 @@
  * A library for handling user input from the keyboard.
  */
 class Keyboard {
+    static Array KBD;
 
     /** Initializes the keyboard. */
     function void init() {
+        let KBD = 24576;
+        return;
     }
 
     /**
@@ -33,6 +36,7 @@ class Keyboard {
      * F1 - F12 = 141 - 152
      */
     function char keyPressed() {
+        return KBD[0];
     }
 
     /**
@@ -41,6 +45,31 @@ class Keyboard {
      * of the pressed key.
      */
     function char readChar() {
+        var char i, prev, key;
+        let i = 0;
+        let key = 0;
+
+        while (i < 2) {
+            let prev = key;
+            let key = Keyboard.keyPressed();
+
+            if (~(key = prev)) {
+                let i = i + 1;
+            }
+        }
+
+        if ((prev > 31) & (prev < 127)) {
+            do Output.printChar(prev);
+        } else {
+            if (prev = 128) {
+                do Output.println();
+            }
+
+            if (prev = 129) {
+                do Output.backSpace();
+            }
+        }
+        return prev;
     }
 
     /**
@@ -49,6 +78,24 @@ class Keyboard {
      * and returns its value. Also handles user backspaces.
      */
     function String readLine(String message) {
+        var char key;
+        var String s;
+
+        do Output.printString(message);
+        let s = String.new(64);
+
+        let key = Keyboard.readChar();
+        while (~(key = 128)) {
+            if (key = 129) {
+                do s.eraseLastChar();
+            } else {
+                let s = s.appendChar(key);
+            }
+
+            let key = Keyboard.readChar();
+        }
+
+        return s;
     }
 
     /**
@@ -58,5 +105,12 @@ class Keyboard {
      * entered text is detected). Also handles user backspaces.
      */
     function int readInt(String message) {
+        var int value;
+        var String s;
+
+        let s = Keyboard.readLine(message);
+        let value = s.intValue();
+        do s.dispose();
+        return value;
     }
 }

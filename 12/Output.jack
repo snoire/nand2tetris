@@ -278,6 +278,7 @@ class Output {
                 let row = 22;
             }
         }
+        do Output.moveCursor(row, col);
         return;
     }
 }
