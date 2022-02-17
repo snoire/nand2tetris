@@ -11,54 +11,122 @@
  * string-oriented operations.
  */
 class String {
+    field Array str;
+    field int len;
 
     /** constructs a new empty string with a maximum length of maxLength
      *  and initial length of 0. */
     constructor String new(int maxLength) {
+        if (maxLength = 0) {
+            let maxLength = 1;
+        }
+
+        let str = Array.new(maxLength);
+        let len = 0;
+        return this;
     }
 
     /** Disposes this string. */
     method void dispose() {
+        do str.dispose();
+        return;
     }
 
     /** Returns the current length of this string. */
     method int length() {
+        return len;
     }
 
     /** Returns the character at the j-th location of this string. */
     method char charAt(int j) {
+        return str[j];
     }
 
     /** Sets the character at the j-th location of this string to c. */
     method void setCharAt(int j, char c) {
+        let str[j] = c;
+        return;
     }
 
     /** Appends c to this string's end and returns this string. */
     method String appendChar(char c) {
+        let str[len] = c;
+        let len = len + 1;
+        return this;
     }
 
     /** Erases the last character from this string. */
     method void eraseLastChar() {
+        let len = len - 1;
+        let str[len] = 0;
+        return;
     }
 
     /** Returns the integer value of this string,
      *  until a non-digit character is detected. */
     method int intValue() {
+        var int i, value;
+        var boolean neg;
+
+        let i = 0;
+        let value = 0;
+        let neg = false;
+
+        if (str[0] = 45) {
+            let neg = true;
+            let i = 1;
+        }
+
+        while (i < len) {
+            let value = value * 10 + str[i] - 48;
+            let i = i + 1;
+        }
+
+        if (neg) {
+            let value = -value;
+        }
+
+        return value;
     }
 
     /** Sets this string to hold a representation of the given value. */
     method void setInt(int val) {
+        let len = 0;
+        if (val < 0) {
+            let val = -val;
+            do appendChar(45);
+        }
+
+        do int2String(val);
+        return;
+    }
+
+    method void int2String(int val) {
+        var int last, div;
+
+        let div = val / 10;
+        let last = val - (div * 10);
+
+        if (~(val < 10)) {
+            do int2String(div);
+        }
+
+        do appendChar(last + 48);
+        return;
     }
 
     /** Returns the new line character. */
     function char newLine() {
+        return 128;
     }
 
     /** Returns the backspace character. */
     function char backSpace() {
+        return 129;
     }
 
     /** Returns the double quote (") character. */
     function char doubleQuote() {
+        return 34;
     }
 }
