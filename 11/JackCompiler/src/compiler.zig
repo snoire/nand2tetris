@@ -19,7 +19,6 @@ while_counter: usize = 0,
 className: []const u8 = undefined,
 funcNameBuf: [128]u8 = undefined,
 funcName: []const u8 = undefined,
-labelNameBuf: [64]u8 = undefined,
 subroutineType: KeyWord = undefined,
 
 tokens: []Token,
@@ -232,10 +231,12 @@ fn letStatement(self: *Self) BufPrintError!void {
 }
 
 fn ifStatement(self: *Self) BufPrintError!void {
-    const counter = self.if_counter;
+    var buf1: [64]u8 = undefined;
+    var buf2: [64]u8 = undefined;
+    const L1 = try bufPrint(&buf1, "IF_FALSE{d}", .{self.if_counter});
+    const L2 = try bufPrint(&buf2, "IF_END{d}", .{self.if_counter});
+
     self.if_counter += 1;
-    var L1: []const u8 = undefined;
-    var L2: []const u8 = undefined;
 
     _ = self.next(); // IF
     _ = self.next(); // (
@@ -243,7 +244,6 @@ fn ifStatement(self: *Self) BufPrintError!void {
     _ = self.next(); // }
 
     self.vm.arithmetic(.not);
-    L1 = try bufPrint(&self.labelNameBuf, "IF_FALSE{d}", .{counter});
     self.vm.@"if-goto"(L1);
 
     _ = self.next(); // {
@@ -251,11 +251,9 @@ fn ifStatement(self: *Self) BufPrintError!void {
     _ = self.next(); // }
 
     if (self.eql(&[_]KeyWord{.ELSE})) {
-        L2 = try bufPrint(&self.labelNameBuf, "IF_END{d}", .{counter});
         self.vm.goto(L2);
     }
 
-    L1 = try bufPrint(&self.labelNameBuf, "IF_FALSE{d}", .{counter});
     self.vm.label(L1);
 
     if (self.eql(&[_]KeyWord{.ELSE})) {
@@ -264,19 +262,19 @@ fn ifStatement(self: *Self) BufPrintError!void {
         try self.statements();
         _ = self.next(); // }
 
-        L2 = try bufPrint(&self.labelNameBuf, "IF_END{d}", .{counter});
         self.vm.label(L2);
     }
 }
 
 fn whileStatement(self: *Self) BufPrintError!void {
-    const counter = self.while_counter;
+    var buf1: [64]u8 = undefined;
+    var buf2: [64]u8 = undefined;
+    const L1 = try bufPrint(&buf1, "WHILE_EXP{d}", .{self.while_counter});
+    const L2 = try bufPrint(&buf2, "WHILE_END{d}", .{self.while_counter});
+
     self.while_counter += 1;
-    var L1: []const u8 = undefined;
-    var L2: []const u8 = undefined;
 
     _ = self.next(); // WHILE
-    L1 = try bufPrint(&self.labelNameBuf, "WHILE_EXP{d}", .{counter});
     self.vm.label(L1);
 
     _ = self.next(); // (
@@ -284,15 +282,12 @@ fn whileStatement(self: *Self) BufPrintError!void {
     _ = self.next(); // )
 
     self.vm.arithmetic(.not);
-    L2 = try bufPrint(&self.labelNameBuf, "WHILE_END{d}", .{counter});
     self.vm.@"if-goto"(L2);
 
     _ = self.next(); // {
     try self.statements();
     _ = self.next(); // }
-    L1 = try bufPrint(&self.labelNameBuf, "WHILE_EXP{d}", .{counter});
     self.vm.goto(L1);
-    L2 = try bufPrint(&self.labelNameBuf, "WHILE_END{d}", .{counter});
     self.vm.label(L2);
 }
 
