@@ -43,6 +43,30 @@ pub const Token = struct {
         THIS,
     };
 
+    const keywords = std.ComptimeStringMap(KeyWord, .{
+        .{ "class", .CLASS },
+        .{ "method", .METHOD },
+        .{ "function", .FUNCTION },
+        .{ "constructor", .CONSTRUCTOR },
+        .{ "int", .INT },
+        .{ "boolean", .BOOLEAN },
+        .{ "char", .CHAR },
+        .{ "void", .VOID },
+        .{ "var", .VAR },
+        .{ "static", .STATIC },
+        .{ "field", .FIELD },
+        .{ "let", .LET },
+        .{ "do", .DO },
+        .{ "if", .IF },
+        .{ "else", .ELSE },
+        .{ "while", .WHILE },
+        .{ "return", .RETURN },
+        .{ "true", .TRUE },
+        .{ "false", .FALSE },
+        .{ "null", .NULL },
+        .{ "this", .THIS },
+    });
+
     pub const Literal = union(enum) {
         identifier: []const u8,
         string: []const u8,
@@ -63,6 +87,10 @@ pub const Token = struct {
         };
     }
 
+    pub fn getKeyword(bytes: []const u8) ?KeyWord {
+        return keywords.get(bytes);
+    }
+
     pub fn format(self: Self, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
         try w.print("<{0s}> {1s} </{0s}>", .{ tokentypes[@enumToInt(self.@"type")], escape(self.lexeme) });
     }
@@ -78,50 +106,15 @@ pub const Token = struct {
     }
 };
 
-pub const Parser = struct {
+pub const Tokenizer = struct {
     const Self = @This();
 
     buf: []const u8,
     pos: usize,
     allocator: Allocator,
     tokens: std.ArrayList(Token),
-    keywords: std.StringHashMap(Token.KeyWord),
-
-    fn initKeywords(allocator: Allocator) !std.StringHashMap(Token.KeyWord) {
-        const TK = Token.KeyWord;
-        const kvpair = .{
-            .{ "class", TK.CLASS },
-            .{ "method", TK.METHOD },
-            .{ "function", TK.FUNCTION },
-            .{ "constructor", TK.CONSTRUCTOR },
-            .{ "int", TK.INT },
-            .{ "boolean", TK.BOOLEAN },
-            .{ "char", TK.CHAR },
-            .{ "void", TK.VOID },
-            .{ "var", TK.VAR },
-            .{ "static", TK.STATIC },
-            .{ "field", TK.FIELD },
-            .{ "let", TK.LET },
-            .{ "do", TK.DO },
-            .{ "if", TK.IF },
-            .{ "else", TK.ELSE },
-            .{ "while", TK.WHILE },
-            .{ "return", TK.RETURN },
-            .{ "true", TK.TRUE },
-            .{ "false", TK.FALSE },
-            .{ "null", TK.NULL },
-            .{ "this", TK.THIS },
-        };
-
-        var keywords = std.StringHashMap(Token.KeyWord).init(allocator);
-        inline for (kvpair) |pair| {
-            try keywords.put(pair.@"0", pair.@"1");
-        }
-        return keywords;
-    }
 
     pub fn init(allocator: Allocator, source: []const u8) !Self {
-        const keywords = try initKeywords(allocator);
         var tokens = std.ArrayList(Token).init(allocator);
 
         return Self{
@@ -129,13 +122,11 @@ pub const Parser = struct {
             .pos = 0,
             .allocator = allocator,
             .tokens = tokens,
-            .keywords = keywords,
         };
     }
 
     pub fn deinit(self: *Self) void {
         self.tokens.deinit();
-        self.keywords.deinit();
     }
 
     pub fn scan(self: *Self) !std.ArrayList(Token) {
@@ -173,7 +164,7 @@ pub const Parser = struct {
                 }
                 var lexeme = self.buf[self.pos..end];
                 self.pos = end;
-                if (self.keywords.get(lexeme)) |keytype| {
+                if (Token.getKeyword(lexeme)) |keytype| {
                     break :blk Token.create(.KEYWORD, lexeme, keytype, null);
                 } else {
                     break :blk Token.create(.IDENTIFIER, lexeme, null, null);

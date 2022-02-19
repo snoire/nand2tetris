@@ -1,7 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
 const allocator = std.heap.page_allocator;
-const parser = @import("tokenizer.zig").Parser;
+const tokenizer = @import("tokenizer.zig").Tokenizer;
 const compiler = @import("compiler.zig");
 const MAX_FILE_SIZE = 0x1000000;
 
@@ -59,7 +59,7 @@ fn handleFile(outputDir: std.fs.Dir, input: []const u8) !void {
     defer vmfile.close();
     const writer = vmfile.writer();
 
-    var t = try parser.init(allocator, bytes);
+    var t = try tokenizer.init(allocator, bytes);
     defer t.deinit();
 
     var tokens = try t.scan();
