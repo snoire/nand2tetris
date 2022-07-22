@@ -20,22 +20,22 @@ pub fn main() anyerror!void {
 
     const stat = try file.stat();
     var asmfilename: []u8 = undefined;
-    var outputDir: std.fs.Dir = undefined;
+    var iterableDir: std.fs.IterableDir = undefined;
     var useStartupCode: bool = false;
 
     if (stat.kind == .File) {
         const noextension = filename[0 .. filename.len - 2]; // file name without extension "vm"
         asmfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ noextension, "asm" });
-        outputDir = try cwd.openDir(std.fs.path.dirname(filename) orelse "./", .{ .iterate = true });
+        iterableDir = try cwd.openIterableDir(std.fs.path.dirname(filename) orelse "./", .{});
     } else if (stat.kind == .Directory) {
         asmfilename = try std.mem.concat(allocator, u8, &[_][]const u8{ filename, "/", std.fs.path.basename(filename), ".asm" });
-        outputDir = try cwd.openDir(filename, .{ .iterate = true });
+        iterableDir = try cwd.openIterableDir(filename, .{});
         useStartupCode = true;
     } else {
         unreachable;
     }
     defer allocator.free(asmfilename);
-    defer outputDir.close();
+    defer iterableDir.close();
 
     // truncate asm file for writing
     const asmfile = try cwd.createFile(asmfilename, .{ .truncate = true });
@@ -48,11 +48,11 @@ pub fn main() anyerror!void {
     const linebuf = try allocator.alloc(u8, 1024);
     defer allocator.free(linebuf);
 
-    // iterate over the outputDir to find the .vm files in it
-    var iter = outputDir.iterate();
+    // iterate over the iterableDir to find the .vm files in it
+    var iter = iterableDir.iterate();
     while (try iter.next()) |entry| {
         if (entry.kind == .File and std.mem.endsWith(u8, entry.name, ".vm")) {
-            const vmfile = try outputDir.openFile(entry.name, .{});
+            const vmfile = try iterableDir.dir.openFile(entry.name, .{});
             defer vmfile.close();
 
             const reader = vmfile.reader();

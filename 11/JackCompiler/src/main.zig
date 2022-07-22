@@ -22,14 +22,14 @@ pub fn main() anyerror!void {
     const stat = try file.stat();
     if (stat.kind == .Directory) {
         const outputDirName = filename;
-        var outputDir = try cwd.openDir(outputDirName, .{ .iterate = true });
-        defer outputDir.close();
+        var iterableDir = try cwd.openIterableDir(outputDirName, .{});
+        defer iterableDir.close();
 
-        // iterate over the outputDir to find the .jack files in it
-        var iter = outputDir.iterate();
+        // iterate over the iterableDir to find the .jack files in it
+        var iter = iterableDir.iterate();
         while (try iter.next()) |entry| {
             if (entry.kind == .File and std.mem.endsWith(u8, entry.name, ".jack")) {
-                try handleFile(outputDir, entry.name);
+                try handleFile(iterableDir.dir, entry.name);
             }
         }
     } else if (stat.kind == .File) {
